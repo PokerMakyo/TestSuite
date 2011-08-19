@@ -67,7 +67,7 @@ class TestCase(object):
         self.mm.SetCards(self.players.index(self.hero), self.hand[0], self.hand[1])
 
     def _set_dealer(self):
-        self.mm.SetDealer(players.index(self.dealer))
+        self.mm.SetDealer(self.players.index(self.dealer))
 
     def _next_action(self):
         for a in self.pf_actions:
