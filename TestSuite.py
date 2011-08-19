@@ -52,6 +52,9 @@ class TestCase(object):
             self.mm.SetCards(c, 'N', 'N')
             self.mm.SetBalance(c, 1000.0)
             self.mm.SetBet(c, 0.0)
+            self.mm.SetFlopCards('N', 'N', 'N')
+            self.mm.SetTurnCard('N')
+            self.mm.SetRiverCard('N')
 
     def _add_players(self):
         c = 0
