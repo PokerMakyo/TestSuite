@@ -1,0 +1,15 @@
+[preflop]
+Hand = 5h, 6c
+Actions = Saxum S, Erasmus B, Anders F, Ginger R, Bot can FCR do C, Crusoe F, OgoPogo F, Hari F, Sanja F, Hooke F, Saxum F, Erasmus F
+
+[flop]
+Cards = 4d, 5s, 6c
+Actions = Ginger K, Bot can FKR do K
+
+[turn]
+Card = 4s
+Actions = Ginger K, Bot can FKR do R, Ginger R, Bot can FCR do C
+
+[river]
+Card = 8s
+Actions = Ginger R, Bot can FCR do C
