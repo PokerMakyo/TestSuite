@@ -1,17 +1,24 @@
+import os
+import time
 import xmlrpclib
 
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from ConfigParser import SafeConfigParser
+from threading import Thread
 
 class TestCase(object):
-    def __init__(self, mm, tcfile):
-        self.started = False
+    def __init__(self, mm, server, tcfile):
+        self.status = 'not started'
 
         config = SafeConfigParser()
+        self.name = tcfile
         config.read(tcfile)
         
         self.mm = mm
+        self.server = server
 
+        server.register_function(self.event)
+        
         self.pf_actions = self._parse_actions(config.get('preflop', 'actions'))
         self.hand = [c.strip() for c in config.get('preflop', 'hand').split(',')]
 
@@ -130,23 +137,27 @@ class TestCase(object):
             return True
 
     def execute(self):
-        if not self.started:
+        if self.status == 'not started':
+            print '    ====    %s    ====' % self.name
             self._reset_table()
-            mm.ProvideEventsHandling()
+            self.mm.ProvideEventsHandling()
             self._add_players()
             self._set_hero()
             self._set_dealer()
-            self.started = True
+            self.status = 'started'
             self._next_action = self._next_action() # yea, ugly
         
+        ra = False
         for action in self._next_action:
-            if self._do_action(action):
-                break; # need to wait for OH action
-            
-    def event(self, button):
-        for b in 'FCKRA':
-            self.mm.SetButton(b, False)
+            ra = self._do_action(action)
+            if ra:
+                self.server.handle_request() # need to wait for OH action
+                break; 
+        if not ra:
+            self.status = 'done'
 
+    def handle_event(self, button):
+        print 'handler'
         print 'Button', button, 'was clicked.'
         print 'We expected', self.last_action[4]
 
@@ -160,24 +171,45 @@ class TestCase(object):
             print 'We are doing check.'
         elif button == 'R':
             print 'We are doing raise.'
-
             self.mm.DoRaise(self.players.index(self.hero))
         self.mm.Refresh()
+
+
         self.execute()
-        
+
+    def event(self, button):
+        for b in 'FCKRA':
+            self.mm.SetButton(b, False)
+        self.mm.Refresh()
+        print 'event'
+        #thread.start_new_thread(handle_event, button)        
+        Thread(target=self.handle_event, args=(button,)).start()
+
+class TestSuite(object):
+    def __init__(self):
+        self.tc_dir = 'testcases'
+
+        self.server = SimpleXMLRPCServer(("localhost", 9093))
+        print "Listening on 9093..." 
+        self.mm = xmlrpclib.ServerProxy('http://localhost:9092')
+
+        self.tc_files = os.listdir(self.tc_dir)
+
+
+    def execute_tests(self):
+        for tcf in self.tc_files:
+            tc = TestCase(self.mm, self.server, os.path.join(self.tc_dir, tcf))
+            tc.execute()
+            while tc.status != 'done':
+                time.sleep(1)
+
 if __name__ == '__main__':
-    server = SimpleXMLRPCServer(("localhost", 9093))
-    print "Listening on 9093..." 
+    ts = TestSuite()
+    ts.execute_tests()
     
-    mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
-    tc = TestCase(mm, 'testcase1.txt')
-    tc.execute()
 
-    server.register_function(tc.event)
     
-    while(1):
-        server.handle_request()
 
 # vim: filetype=python syntax=python expandtab shiftwidth=4 softtabstop=4
 
