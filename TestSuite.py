@@ -66,6 +66,8 @@ class TestCase(object):
             self.mm.SetFlopCards('N', 'N', 'N')
             self.mm.SetTurnCard('N')
             self.mm.SetRiverCard('N')
+        for b in 'FCKRA':
+            self.mm.SetButton(b, False)
 
     def _add_players(self):
         c = 0
