@@ -13,14 +13,25 @@ class TestCase(object):
         self.mm = mm
 
         self.pf_actions = self._parse_actions(config.get('preflop', 'actions'))
-        self.flop_actions = self._parse_actions(config.get('flop', 'actions')) 
-        self.turn_actions = self._parse_actions(config.get('turn', 'actions')) 
-        self.river_actions = self._parse_actions(config.get('river', 'actions')) 
-
         self.hand = [c.strip() for c in config.get('preflop', 'hand').split(',')]
-        self.fc = [c.strip() for c in config.get('flop', 'cards').split(',')]
-        self.tc = config.get('turn', 'card')
-        self.rc = config.get('river', 'card')
+
+        try:
+            self.flop_actions = self._parse_actions(config.get('flop', 'actions')) 
+            self.fc = [c.strip() for c in config.get('flop', 'cards').split(',')]
+        except:
+            self.flop_actions = []
+
+        try:
+            self.turn_actions = self._parse_actions(config.get('turn', 'actions')) 
+            self.tc = config.get('turn', 'card')
+        except:
+            self.turn_actions = []
+
+        try:
+            self.river_actions = self._parse_actions(config.get('river', 'actions')) 
+            self.rc = config.get('river', 'card')
+        except:
+            self.river_actions = []
 
         self.players = []
         for a in self.pf_actions:
