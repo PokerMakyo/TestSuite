@@ -33,12 +33,14 @@ class TestCase(object):
             self.tc = config.get('turn', 'card')
         except:
             self.turn_actions = []
+            self.tc = None
 
         try:
             self.river_actions = self._parse_actions(config.get('river', 'actions')) 
             self.rc = config.get('river', 'card')
         except:
             self.river_actions = []
+            self.rc = None
 
         self.players = []
         for a in self.pf_actions:
@@ -100,13 +102,19 @@ class TestCase(object):
 
         for a in self.flop_actions:
             yield a
-
-        self.mm.SetTurnCard(self.tc)
+        
+        if self.tc:
+            self.mm.SetTurnCard(self.tc)
+        else:
+            return
 
         for a in self.turn_actions:
             yield a
 
-        self.mm.SetRiverCard(self.rc)
+        if self.rc:
+            self.mm.SetRiverCard(self.rc)
+        else:
+            return
 
         for a in self.river_actions:
             yield a
