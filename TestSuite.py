@@ -9,6 +9,7 @@ from threading import Thread
 class TestCase(object):
     def __init__(self, mm, server, tcfile):
         self.status = 'not started'
+        self.bround = None
 
         config = SafeConfigParser()
         self.name = tcfile
@@ -95,11 +96,13 @@ class TestCase(object):
         self.mm.SetDealer(self.players.index(self.dealer))
 
     def _next_action(self):
+        self.bround = 'preflop'
         for a in self.pf_actions:
             yield a
 
         self.mm.SetFlopCards(self.fc[0], self.fc[1], self.fc[2])
-
+        
+        self.bround = 'flop'
         for a in self.flop_actions:
             yield a
         
@@ -108,6 +111,7 @@ class TestCase(object):
         else:
             return
 
+        self.bround = 'turn'
         for a in self.turn_actions:
             yield a
 
@@ -116,12 +120,13 @@ class TestCase(object):
         else:
             return
 
+        self.bround = 'river'
         for a in self.river_actions:
             yield a
 
     def _do_action(self, action):
         self.last_action = action
-        print action
+        print 'Processing %s action: %s' % (self.bround, action)
         if len(action) == 2:
             if action[1] == 'S':
                 self.mm.PostSB(self.players.index(action[0]))
@@ -165,23 +170,21 @@ class TestCase(object):
             self.status = 'done'
 
     def handle_event(self, button):
-        print 'handler'
-        print 'Button', button, 'was clicked.'
-        print 'We expected', self.last_action[4]
+        print 'Expected %s, got %s.' % (self.last_action[4], button)
 
         if button == 'F':
-            print 'We are doing fold.'
+            #print 'We are doing fold.'
             self.mm.DoFold(self.players.index(self.hero))
         elif button == 'C':
-            print 'We are doing call.'
+            #print 'We are doing call.'
             self.mm.DoCall(self.players.index(self.hero))
         elif button == 'K':
-            print 'We are doing check.'
+            #print 'We are doing check.'
+            pass
         elif button == 'R':
-            print 'We are doing raise.'
+            #print 'We are doing raise.'
             self.mm.DoRaise(self.players.index(self.hero))
         self.mm.Refresh()
-
 
         self.execute()
 
@@ -189,8 +192,6 @@ class TestCase(object):
         for b in 'FCKRA':
             self.mm.SetButton(b, False)
         self.mm.Refresh()
-        print 'event'
-        #thread.start_new_thread(handle_event, button)        
         Thread(target=self.handle_event, args=(button,)).start()
 
 class TestSuite(object):
@@ -198,7 +199,6 @@ class TestSuite(object):
         self.tc_dir = 'testcases'
 
         self.server = SimpleXMLRPCServer(("localhost", 9093))
-        print "Listening on 9093..." 
         self.mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
         self.load_testcases()
