@@ -201,19 +201,24 @@ class TestSuite(object):
         print "Listening on 9093..." 
         self.mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
+        self.load_testcases()
+    
+    def load_testcases(self):
         self.tc_files = os.listdir(self.tc_dir)
 
+    def execute(self, tcf):
+        tc = TestCase(self.mm, self.server, os.path.join(self.tc_dir, tcf))
+        tc.execute()
+        while tc.status != 'done':
+            time.sleep(1)
 
-    def execute_tests(self):
+    def execute_all(self):
         for tcf in self.tc_files:
-            tc = TestCase(self.mm, self.server, os.path.join(self.tc_dir, tcf))
-            tc.execute()
-            while tc.status != 'done':
-                time.sleep(1)
+            self.execute(tcf)
 
 if __name__ == '__main__':
     ts = TestSuite()
-    ts.execute_tests()
+    ts.execute_all()
     
 
 
