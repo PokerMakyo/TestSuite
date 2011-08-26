@@ -1,0 +1,17 @@
+[table]
+sblind = 0.5
+bblind = 1
+bbet = 2
+ante = 0
+gtype = FL
+network = Everest
+tournament = True
+balances = Ginger 1500, Bot 500
+
+[preflop]
+Hand = 2s, 6c
+Actions = Anders S, Ginger B, Bot can CRF do C, Crusoe F, OgoPogo R, Hari F, Sanja R, Hooke F, Saxum F, Erasmus F, Anders F, Ginger F, Bot can CRF do C, OgoPogo R, Sanja C, Bot can CRF do C
+
+[flop]
+Cards = Th, 5s, 2c
+Actions = Bot can CRF do C, OgoPogo C, Sanja R, Bot can CRF do F

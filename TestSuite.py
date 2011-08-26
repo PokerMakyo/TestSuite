@@ -1,25 +1,30 @@
 import os
 import time
 import xmlrpclib
+import ConfigParser
 
 from SimpleXMLRPCServer import SimpleXMLRPCServer
-from ConfigParser import SafeConfigParser
 from threading import Thread
 
 class TestCase(object):
-    def __init__(self, mm, server, tcfile):
+    def __init__(self, mm, server, tcfile, litm = None, logs = None):
         self.status = 'not started'
+
+        self.litm = litm
+        self.logs = logs
+
         self.bround = None
 
-        config = SafeConfigParser()
-        self.name = tcfile
-        config.read(tcfile)
+        self.config = ConfigParser.SafeConfigParser()
+        self.tcfile = tcfile
+        self.config.read(tcfile)
         
         self.mm = mm
         self.server = server
 
         server.register_function(self.event)
         
+        config = self.config # shortcut
         self.pf_actions = self._parse_actions(config.get('preflop', 'actions'))
         self.hand = [c.strip() for c in config.get('preflop', 'hand').split(',')]
 
@@ -79,6 +84,61 @@ class TestCase(object):
         for b in 'FCKRA':
             self.mm.SetButton(b, False)
 
+    def _configure_table(self):
+        config = self.config # shortcut
+        
+        def sblind():
+            sblind = config.getfloat('table', 'sblind')
+            self.mm.SetSBlind(sblind)
+        
+        def bblind():
+            bblind = config.getfloat('table', 'bblind')
+            self.mm.SetBBlind(bblind)
+
+        def bbet():
+            bbet = float(config.getfloat('table', 'bbet'))
+            self.mm.SetBBet(bbet)
+
+        def ante():
+            ante = float(config.getfloat('table', 'ante'))
+            self.mm.SetAnte(ante)
+      
+        def gtype():
+            gtype = config.get('table', 'gtype')
+            if gtype in ('NL', 'PL', 'FL'):
+                self.mm.SetGType(gtype)
+
+        def network():
+            network = config.get('table', 'network')
+            self.mm.SetNetwork(network)
+
+        def tournament():
+            tournament = config.getboolean('table', 'tournament')
+            self.mm.SetTournament(tournament)
+
+        #def balances():
+        balances = config.get('table', 'balances')
+        balances = balances.split(',')
+        for balance in balances:
+            b = balance.strip().split(' ')
+            print b
+            self.mm.SetBalance(self.players.index(b[0].strip()), float(b[1].strip()))
+
+        for t in (sblind, bblind, bbet, ante, gtype, network, tournament, balances):
+            try:
+                t()
+            except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as e:
+                if e.section == 'table':
+                    pass # this is optional
+                else:
+                    pass
+                    # FIXME: handle it!
+            except:
+                pass
+                # FIXME: handle it!
+
+        self.mm.Refresh()
+
     def _add_players(self):
         c = 0
         for p in self.players:
@@ -126,7 +186,10 @@ class TestCase(object):
 
     def _do_action(self, action):
         self.last_action = action
-        print 'Processing %s action: %s' % (self.bround, action)
+        if not self.logs:
+            print 'Processing %s action: %s' % (self.bround, action)
+        else:
+            self.logs.append('Processing %s action: %s' % (self.bround, action))
         if len(action) == 2:
             if action[1] == 'S':
                 self.mm.PostSB(self.players.index(action[0]))
@@ -151,8 +214,12 @@ class TestCase(object):
 
     def execute(self):
         if self.status == 'not started':
-            print '    ====    %s    ====' % self.name
+            if not self.logs:
+                print '    ====    %s    ====' % self.tcfile
+            else:
+                self.logs.append('\n    ====    %s    ====\n' % self.tcfile)
             self._reset_table()
+            self._configure_table()
             self.mm.ProvideEventsHandling()
             self._add_players()
             self._set_hero()
@@ -170,7 +237,10 @@ class TestCase(object):
             self.status = 'done'
 
     def handle_event(self, button):
-        print 'Expected %s, got %s.' % (self.last_action[4], button)
+        if not self.logs:
+            print 'Expected %s, got %s.' % (self.last_action[4], button)
+        else:
+            self.logs.append('Expected %s, got %s.' % (self.last_action[4], button))
 
         if button == 'F':
             #print 'We are doing fold.'
@@ -206,8 +276,8 @@ class TestSuite(object):
     def load_testcases(self):
         self.tc_files = os.listdir(self.tc_dir)
 
-    def execute(self, tcf):
-        tc = TestCase(self.mm, self.server, os.path.join(self.tc_dir, tcf))
+    def execute(self, tcf, litm, logs):
+        tc = TestCase(self.mm, self.server, os.path.join(self.tc_dir, str(tcf)), litm, logs)
         tc.execute()
         while tc.status != 'done':
             time.sleep(1)

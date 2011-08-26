@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>450</width>
+    <height>487</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>TestSuite</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <widget class="QLabel" name="label_2">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Testcases</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="testcases">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>250</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QPushButton" name="execute">
+         <property name="text">
+          <string>Execute</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="execute_all">
+         <property name="text">
+          <string>Execute all</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="reload">
+         <property name="text">
+          <string>Reload</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item row="1" column="0">
+    <layout class="QVBoxLayout" name="verticalLayout_4">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Logs</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QTextBrowser" name="logs">
+       <property name="font">
+        <font>
+         <family>Courier 10 Pitch</family>
+        </font>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>execute</sender>
+   <signal>clicked()</signal>
+   <receiver>Form</receiver>
+   <slot>execute_event()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>32</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>462</x>
+     <y>225</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>execute_all</sender>
+   <signal>clicked()</signal>
+   <receiver>Form</receiver>
+   <slot>execute_all_event()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>438</x>
+     <y>102</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>461</x>
+     <y>276</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>reload</sender>
+   <signal>clicked()</signal>
+   <receiver>Form</receiver>
+   <slot>reload_event()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>438</x>
+     <y>217</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>460</x>
+     <y>332</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>logs</sender>
+   <signal>textChanged()</signal>
+   <receiver>Form</receiver>
+   <slot>logs_event()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>218</x>
+     <y>394</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>444</x>
+     <y>370</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>execute_event()</slot>
+  <slot>execute_all_event()</slot>
+  <slot>reload_event()</slot>
+  <slot>logs_event()</slot>
+ </slots>
+</ui>
