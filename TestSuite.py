@@ -116,13 +116,13 @@ class TestCase(object):
             tournament = config.getboolean('table', 'tournament')
             self.mm.SetTournament(tournament)
 
-        #def balances():
-        balances = config.get('table', 'balances')
-        balances = balances.split(',')
-        for balance in balances:
-            b = balance.strip().split(' ')
-            print b
-            self.mm.SetBalance(self.players.index(b[0].strip()), float(b[1].strip()))
+        def balances():
+            balances = config.get('table', 'balances')
+            balances = balances.split(',')
+            for balance in balances:
+                b = balance.strip().split(' ')
+                print b
+                self.mm.SetBalance(self.players.index(b[0].strip()), float(b[1].strip()))
 
         for t in (sblind, bblind, bbet, ante, gtype, network, tournament, balances):
             try:
@@ -217,7 +217,7 @@ class TestCase(object):
             if not self.logs:
                 print '    ====    %s    ====' % self.tcfile
             else:
-                self.logs.append('\n    ====    %s    ====\n' % self.tcfile)
+                self.logs.append('\n    <b>====    %s    ====</b>\n' % self.tcfile)
             self._reset_table()
             self._configure_table()
             self.mm.ProvideEventsHandling()
@@ -240,7 +240,10 @@ class TestCase(object):
         if not self.logs:
             print 'Expected %s, got %s.' % (self.last_action[4], button)
         else:
-            self.logs.append('Expected %s, got %s.' % (self.last_action[4], button))
+            if self.last_action[4] == button:
+                self.logs.append('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (self.last_action[4], button))
+            else:
+                self.logs.append('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (self.last_action[4], button))
 
         if button == 'F':
             #print 'We are doing fold.'
