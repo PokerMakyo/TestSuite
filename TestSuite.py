@@ -48,6 +48,10 @@ class TestCase(object):
             self.river_actions = []
             self.rc = None
 
+        for a in self.pf_actions:
+            if len(a) > 2:
+                self.hero = a[0]
+
         self.players = []
         for a in self.pf_actions:
             if a[0] not in self.players:
@@ -55,9 +59,10 @@ class TestCase(object):
             else:
                 break
         
-        for a in self.pf_actions:
-            if len(a) > 2:
-                self.hero = a[0]
+        # we want to have Hero always on chair == 0
+        for i in range(0, len(self.players) - self.players.index(self.hero)):
+            p = self.players.pop()
+            self.players.insert(0, p)
 
         # dealer is sitting before SB
         SB = self.pf_actions[0][0]
