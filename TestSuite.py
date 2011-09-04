@@ -217,8 +217,10 @@ class TestCase(object):
 
             return True
 
-    def execute(self):
+    def execute(self, hand_number = None):
         if self.status == 'not started':
+            if hand_number:
+                self.mm.SetHandNumber(hand_number)
             if not self.logs:
                 print '    ====    %s    ====' % self.tcfile
             else:
@@ -280,19 +282,17 @@ class TestSuite(object):
         self.mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
         self.load_testcases()
+        self.hand_number = 0
     
     def load_testcases(self):
         self.tc_files = os.listdir(self.tc_dir)
 
     def execute(self, tcf, litm, logs):
         tc = TestCase(self.mm, self.server, os.path.join(self.tc_dir, str(tcf)), litm, logs)
-        tc.execute()
+        self.hand_number += 1
+        tc.execute(self.hand_number)
         while tc.status != 'done':
             time.sleep(1)
-
-    def execute_all(self):
-        for tcf in self.tc_files:
-            self.execute(tcf)
 
 if __name__ == '__main__':
     ts = TestSuite()
