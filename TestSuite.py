@@ -33,6 +33,7 @@ class TestCase(object):
             self.fc = [c.strip() for c in config.get('flop', 'cards').split(',')]
         except:
             self.flop_actions = []
+            self.fc = None
 
         try:
             self.turn_actions = self._parse_actions(config.get('turn', 'actions')) 
