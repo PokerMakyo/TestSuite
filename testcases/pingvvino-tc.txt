@@ -1,0 +1,13 @@
+[table]
+sblind = 0.5
+bblind = 1
+bbet = 2
+ante = 0
+gtype = NL
+network = Stars
+tournament = False
+balances = latynos 46, ERsmus 13, grzes 42.11, Ginger 13, Crusoe 12, Bot 41, neomorf 12, scorpionfish 77, justforfunds 99.5
+
+[preflop]
+Hand = ah, ac
+Actions = latynos S, ERsmus B, grzes R 4, Ginger C, Crusoe C, Bot can FCRA do F, neomorf F, scorpionfish F, justforfunds R 22.1, latynos F, ERsmus F

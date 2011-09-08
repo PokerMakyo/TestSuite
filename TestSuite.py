@@ -50,7 +50,7 @@ class TestCase(object):
             self.rc = None
 
         for a in self.pf_actions:
-            if len(a) > 2:
+            if len(a) > 3:
                 self.hero = a[0]
 
         self.players = []
@@ -89,6 +89,7 @@ class TestCase(object):
             self.mm.SetRiverCard('N')
         for b in 'FCKRA':
             self.mm.SetButton(b, False)
+        time.sleep(2)
 
     def _configure_table(self):
         config = self.config # shortcut
@@ -166,7 +167,8 @@ class TestCase(object):
         for a in self.pf_actions:
             yield a
 
-        self.mm.SetFlopCards(self.fc[0], self.fc[1], self.fc[2])
+        if self.fc:
+            self.mm.SetFlopCards(self.fc[0], self.fc[1], self.fc[2])
         
         self.bround = 'flop'
         for a in self.flop_actions:
@@ -196,6 +198,7 @@ class TestCase(object):
             print 'Processing %s action: %s' % (self.bround, action)
         else:
             self.logs.append('Processing %s action: %s' % (self.bround, action))
+        time.sleep(0.5)
         if len(action) == 2:
             if action[1] == 'S':
                 self.mm.PostSB(self.players.index(action[0]))
@@ -208,7 +211,11 @@ class TestCase(object):
             elif action[1] == 'F':
                 self.mm.DoFold(self.players.index(action[0]))
             self.mm.Refresh()
-
+            return False
+        elif len(action) == 3:
+            if action[1] == 'R':
+                self.mm.DoRaise(self.players.index(action[0]),float(action[2]))
+            self.mm.Refresh()
             return False
         else:
             # it's out turn, we need to show buttons
@@ -298,10 +305,6 @@ class TestSuite(object):
 if __name__ == '__main__':
     ts = TestSuite()
     ts.execute_all()
-    
-
-
-    
 
 # vim: filetype=python syntax=python expandtab shiftwidth=4 softtabstop=4
 
