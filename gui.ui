@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>450</width>
-    <height>487</height>
+    <width>385</width>
+    <height>506</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -56,6 +56,16 @@
         <widget class="QPushButton" name="execute_all">
          <property name="text">
           <string>Execute all</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="stop">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Stop</string>
          </property>
         </widget>
        </item>
@@ -174,11 +184,28 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>stop</sender>
+   <signal>clicked()</signal>
+   <receiver>Form</receiver>
+   <slot>stop_event()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>336</x>
+     <y>119</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>192</x>
+     <y>252</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>execute_event()</slot>
   <slot>execute_all_event()</slot>
   <slot>reload_event()</slot>
   <slot>logs_event()</slot>
+  <slot>stop_event()</slot>
  </slots>
 </ui>
