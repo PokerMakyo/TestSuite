@@ -17,7 +17,7 @@ setup(
             'includes': [
                 'sip',
                 ],
-            'excludes': [ 
+            'excludes': [
                 "pywin",
                 "pywin.debugger",
                 "pywin.debugger.dbgcon",

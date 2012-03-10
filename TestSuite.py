@@ -18,32 +18,32 @@ class TestCase(object):
         self.config = ConfigParser.SafeConfigParser()
         self.tcfile = tcfile
         self.config.read(tcfile)
-        
+
         self.mm = mm
         self.server = server
 
         server.register_function(self.event)
-        
+
         config = self.config # shortcut
         self.pf_actions = self._parse_actions(config.get('preflop', 'actions'))
         self.hand = [c.strip() for c in config.get('preflop', 'hand').split(',')]
 
         try:
-            self.flop_actions = self._parse_actions(config.get('flop', 'actions')) 
+            self.flop_actions = self._parse_actions(config.get('flop', 'actions'))
             self.fc = [c.strip() for c in config.get('flop', 'cards').split(',')]
         except:
             self.flop_actions = []
             self.fc = None
 
         try:
-            self.turn_actions = self._parse_actions(config.get('turn', 'actions')) 
+            self.turn_actions = self._parse_actions(config.get('turn', 'actions'))
             self.tc = config.get('turn', 'card')
         except:
             self.turn_actions = []
             self.tc = None
 
         try:
-            self.river_actions = self._parse_actions(config.get('river', 'actions')) 
+            self.river_actions = self._parse_actions(config.get('river', 'actions'))
             self.rc = config.get('river', 'card')
         except:
             self.river_actions = []
@@ -59,7 +59,7 @@ class TestCase(object):
                 self.players.append(a[0])
             else:
                 break
-        
+
         # we want to have Hero always on chair == 0
         for i in range(0, len(self.players) - self.players.index(self.hero)):
             p = self.players.pop()
@@ -93,11 +93,11 @@ class TestCase(object):
 
     def _configure_table(self):
         config = self.config # shortcut
-        
+
         def sblind():
             sblind = config.getfloat('table', 'sblind')
             self.mm.SetSBlind(sblind)
-        
+
         def bblind():
             bblind = config.getfloat('table', 'bblind')
             self.mm.SetBBlind(bblind)
@@ -109,7 +109,7 @@ class TestCase(object):
         def ante():
             ante = float(config.getfloat('table', 'ante'))
             self.mm.SetAnte(ante)
-      
+
         def gtype():
             gtype = config.get('table', 'gtype')
             if gtype in ('NL', 'PL', 'FL'):
@@ -169,11 +169,11 @@ class TestCase(object):
 
         if self.fc:
             self.mm.SetFlopCards(self.fc[0], self.fc[1], self.fc[2])
-        
+
         self.bround = 'flop'
         for a in self.flop_actions:
             yield a
-        
+
         if self.tc:
             self.mm.SetTurnCard(self.tc)
         else:
@@ -241,13 +241,13 @@ class TestCase(object):
             self._set_dealer()
             self.status = 'started'
             self._next_action = self._next_action() # yea, ugly
-        
+
         ra = False
         for action in self._next_action:
             ra = self._do_action(action)
             if ra:
                 self.server.handle_request() # need to wait for OH action
-                break; 
+                break;
         if not ra:
             self.status = 'done'
 
@@ -291,7 +291,7 @@ class TestSuite(object):
 
         self.load_testcases()
         self.hand_number = 0
-    
+
     def load_testcases(self):
         self.tc_files = os.listdir(self.tc_dir)
 
