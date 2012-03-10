@@ -24,6 +24,10 @@ class TestCase(object):
 
         server.register_function(self.event)
 
+        if tcfile:
+            self._parse_tcfile(tcfile)
+
+    def _parse_tcfile(self, tcfile):
         config = self.config # shortcut
         self.pf_actions = self._parse_actions(config.get('preflop', 'actions'))
         self.hand = [c.strip() for c in config.get('preflop', 'hand').split(',')]
