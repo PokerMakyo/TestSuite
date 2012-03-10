@@ -40,7 +40,8 @@ class MyForm(QtGui.QWidget):
         Thread(target=self.handle_execute, args=(True,)).start()
 
     def stop_event(self):
-        pass
+        self.ts.stop()
+        self._update_buttons(False)
 
     def logs_event(self):
         c = self.ui.logs.textCursor()

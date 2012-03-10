@@ -10,6 +10,9 @@ class TestCase(object):
     def __init__(self, mm, server, tcfile, litm = None, logs = None):
         self.status = 'not started'
 
+        self.aborted = False
+        self.handling = False
+
         self.litm = litm
         self.logs = logs
 
@@ -23,6 +26,7 @@ class TestCase(object):
         self.server = server
 
         server.register_function(self.event)
+        server.register_function(self.stop_handling)
 
         if tcfile:
             self._parse_tcfile(tcfile)
@@ -248,9 +252,13 @@ class TestCase(object):
 
         ra = False
         for action in self._next_action:
+            if self.aborted:
+                return
             ra = self._do_action(action)
             if ra:
+                self.handling = True
                 self.server.handle_request() # need to wait for OH action
+                self.handling = False
                 break;
         if not ra:
             self.status = 'done'
@@ -286,9 +294,16 @@ class TestCase(object):
         self.mm.Refresh()
         Thread(target=self.handle_event, args=(button,)).start()
 
+    def stop_handling(self):
+        return 0
+
 class TestSuite(object):
     def __init__(self):
         self.tc_dir = 'testcases'
+
+        self.tc = None
+
+        self.logs = None
 
         self.server = SimpleXMLRPCServer(("localhost", 9093))
         self.mm = xmlrpclib.ServerProxy('http://localhost:9092')
@@ -300,11 +315,19 @@ class TestSuite(object):
         self.tc_files = os.listdir(self.tc_dir)
 
     def execute(self, tcf, litm, logs):
-        tc = TestCase(self.mm, self.server, os.path.join(self.tc_dir, str(tcf)), litm, logs)
+        self.logs = logs
+        self.tc = TestCase(self.mm, self.server, os.path.join(self.tc_dir, str(tcf)), litm, logs)
         self.hand_number += 1
-        tc.execute(self.hand_number)
-        while tc.status != 'done':
+        self.tc.execute(self.hand_number)
+        while self.tc.status != 'done':
             time.sleep(1)
+
+    def stop(self):
+        self.tc.aborted = True
+        if self.tc.handling:
+            myself = xmlrpclib.ServerProxy('http://localhost:9093')
+            myself.stop_handling()
+        self.logs.append('<font color="#FF0000"><b>Stopped...</b></font><font color="#000000"> </font>')
 
 if __name__ == '__main__':
     ts = TestSuite()
