@@ -3,8 +3,29 @@ import time
 import xmlrpclib
 import ConfigParser
 
+from itertools import izip
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from threading import Thread
+
+class MyCycle(object):
+    def __init__(self, lst):
+        self.list = lst
+
+    def __iter__(self):
+        while True:
+            items_left = False
+            for x in self.list:
+                if x is not None:
+                    items_left = True
+                    yield x
+            if not items_left:
+                return
+
+    def remove(self, e):
+        self.list[self.list.index(e)] = None
+
+    def get_list(self):
+        return [p for p in self.list if p]
 
 class TestCase(object):
     def __init__(self, mm, server, tcfile, litm = None, logs = None):
@@ -18,9 +39,7 @@ class TestCase(object):
 
         self.bround = None
 
-        self.config = ConfigParser.SafeConfigParser()
         self.tcfile = tcfile
-        self.config.read(tcfile)
 
         self.mm = mm
         self.server = server
@@ -28,10 +47,41 @@ class TestCase(object):
         server.register_function(self.event)
         server.register_function(self.stop_handling)
 
-        if tcfile:
-            self._parse_tcfile(tcfile)
+        # table configuration
+        self.sblind = None
+        self.bblind = None
+        self.bbet = None
+        self.ante = None
+        self.gtype = None
+        self.network = None
+        self.tournament = None
+        self.balances = None
 
-    def _parse_tcfile(self, tcfile):
+        if tcfile[-3:] == '.pa':
+            self._parse_pa(tcfile)
+        else:
+            self._parse_txt(tcfile)
+
+        self.players = []
+        for a in self.pf_actions:
+            if a[0] not in self.players:
+                self.players.append(a[0])
+            else:
+                break
+
+        # we want to have Hero always on chair == 0
+        for i in range(0, len(self.players) - self.players.index(self.hero)):
+            p = self.players.pop()
+            self.players.insert(0, p)
+
+        # dealer is sitting before SB
+        SB = self.pf_actions[0][0]
+        self.dealer = self.players[self.players.index(SB) - 1]
+
+    def _parse_txt(self, tcfile):
+        self.config = ConfigParser.SafeConfigParser()
+        self.config.read(tcfile)
+
         config = self.config # shortcut
         self.pf_actions = self._parse_actions(config.get('preflop', 'actions'))
         self.hand = [c.strip() for c in config.get('preflop', 'hand').split(',')]
@@ -61,21 +111,138 @@ class TestCase(object):
             if len(a) > 3:
                 self.hero = a[0]
 
-        self.players = []
-        for a in self.pf_actions:
-            if a[0] not in self.players:
-                self.players.append(a[0])
-            else:
-                break
+        def sblind():
+            self.sblind = config.getfloat('table', 'sblind')
 
-        # we want to have Hero always on chair == 0
-        for i in range(0, len(self.players) - self.players.index(self.hero)):
-            p = self.players.pop()
-            self.players.insert(0, p)
+        def bblind():
+            self.bblind = config.getfloat('table', 'bblind')
 
-        # dealer is sitting before SB
-        SB = self.pf_actions[0][0]
-        self.dealer = self.players[self.players.index(SB) - 1]
+        def bbet():
+            self.bbet = float(config.getfloat('table', 'bbet'))
+
+        def ante():
+            self.ante = float(config.getfloat('table', 'ante'))
+
+        def gtype():
+            self.gtype = config.get('table', 'gtype')
+
+        def network():
+            self.network = config.get('table', 'network')
+
+        def tournament():
+            self.tournament = config.getboolean('table', 'tournament')
+
+        def balances():
+            balances = config.get('table', 'balances')
+            self.balances = [b.split() for b in balances.split(',')]
+
+        for t in (sblind, bblind, bbet, ante, gtype, network, tournament, balances):
+            try:
+                t()
+            except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as e:
+                if e.section == 'table':
+                    pass # this is optional
+                else:
+                    pass
+                    # FIXME: handle it!
+            except:
+                pass
+                # FIXME: handle it!
+
+    def _parse_pa(self, tcfile):
+        fd = file(tcfile)
+
+        tcd = {}
+
+        for e in fd.readline()[:-1].split(';'):
+            key, value = e.split('=')
+            tcd[key] = value
+
+        sb = int(tcd['SBS'])
+
+        players_order = [i for i in range(sb, 10)] + [i for i in range(0, sb)]
+
+        players = []
+        for i in players_order:
+            try:
+                players.append(tcd['PN%i' % i])
+            except KeyError:
+                pass
+
+        print players
+
+        actions = tcd['SEQ'].split('/')
+
+        actions = [a.replace('b', 'r').upper() for a in actions]
+
+        print 'preflop'
+
+        self.hero = tcd['HERO']
+
+        def get_history(pc, actions):
+            history = []
+            for player, action in izip(pc, actions):
+                if player == self.hero:
+                    action = ("%s can CRFK do %s" % (player, action)).split(' ')
+                    history.append(action)
+                else:
+                    history.append((player, action))
+                if action == 'f':
+                    pc.remove(player)
+            return history
+
+
+        pc = MyCycle(players)
+        self.pf_actions = get_history(pc, actions[0])
+
+        pc = MyCycle(pc.get_list())
+        self.flop_actions = get_history(pc, actions[1])
+
+        pc = MyCycle(pc.get_list())
+        self.turn_actions = get_history(pc, actions[2])
+
+        pc = MyCycle(pc.get_list())
+        self.river_actions = get_history(pc, actions[3])
+
+        board = tcd['BOARD']
+        cards = [board[i]+board[i+1] for i in range(0, len(board), 2)]
+
+        if cards[0][0] != '?':
+            self.fc = cards[:3]
+        else:
+            self.fc = None
+
+        if cards[3][0] != '?':
+            self.tc = cards[3]
+        else:
+            self.tc = None
+
+        if cards[4][0] != '?':
+            self.rc = cards[4]
+        else:
+            self.rc = None
+
+        ntp = {}
+        for i in range(0, 10):
+            try:
+                ntp[tcd['PN%i' % i]] = i
+            except KeyError:
+                pass
+
+        print ntp
+
+        self.hand = [tcd['PC%i' % ntp[self.hero]][:2], tcd['PC%i' % ntp[self.hero]][-2:]]
+
+        self.balances = []
+        for i in range(0, 10):
+            try:
+                self.balances.append((tcd['PN%i' % i], tcd['PB%i' % i]))
+            except KeyError:
+                pass
+
+        self.sblind = tcd['SB']
+        self.bblind = tcd['BB']
+        self.ante = tcd['ANTE']
 
     def _parse_actions(self, config_text):
         actions = []
@@ -100,57 +267,31 @@ class TestCase(object):
         time.sleep(2)
 
     def _configure_table(self):
-        config = self.config # shortcut
+        if self.sblind:
+            self.mm.SetSBlind(self.sblind)
 
-        def sblind():
-            sblind = config.getfloat('table', 'sblind')
-            self.mm.SetSBlind(sblind)
+        if self.bblind:
+            self.mm.SetBBlind(self.bblind)
 
-        def bblind():
-            bblind = config.getfloat('table', 'bblind')
-            self.mm.SetBBlind(bblind)
+        if self.bbet:
+            self.mm.SetBBet(self.bbet)
 
-        def bbet():
-            bbet = float(config.getfloat('table', 'bbet'))
-            self.mm.SetBBet(bbet)
+        if self.ante:
+            self.mm.SetAnte(self.ante)
 
-        def ante():
-            ante = float(config.getfloat('table', 'ante'))
-            self.mm.SetAnte(ante)
+        if self.gtype:
+            if self.gtype in ('NL', 'PL', 'FL'):
+                self.mm.SetGType(self.gtype)
 
-        def gtype():
-            gtype = config.get('table', 'gtype')
-            if gtype in ('NL', 'PL', 'FL'):
-                self.mm.SetGType(gtype)
+        if self.network:
+            self.mm.SetNetwork(self.network)
 
-        def network():
-            network = config.get('table', 'network')
-            self.mm.SetNetwork(network)
+        if self.tournament:
+            self.mm.SetTournament(self.tournament)
 
-        def tournament():
-            tournament = config.getboolean('table', 'tournament')
-            self.mm.SetTournament(tournament)
-
-        def balances():
-            balances = config.get('table', 'balances')
-            balances = balances.split(',')
-            for balance in balances:
-                b = balance.strip().split(' ')
-                print b
-                self.mm.SetBalance(self.players.index(b[0].strip()), float(b[1].strip()))
-
-        for t in (sblind, bblind, bbet, ante, gtype, network, tournament, balances):
-            try:
-                t()
-            except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as e:
-                if e.section == 'table':
-                    pass # this is optional
-                else:
-                    pass
-                    # FIXME: handle it!
-            except:
-                pass
-                # FIXME: handle it!
+        if self.balances:
+            for player, balance in self.balances:
+                self.mm.SetBalance(self.players.index(player.strip()), float(balance.strip()))
 
         self.mm.Refresh()
 
@@ -312,7 +453,7 @@ class TestSuite(object):
         self.hand_number = 0
 
     def load_testcases(self):
-        self.tc_files = os.listdir(self.tc_dir)
+        self.tc_files = [file for file in os.listdir(self.tc_dir) if file[-4:] == '.txt' or file[-3:] == '.pa']
 
     def execute(self, tcf, litm, logs):
         self.logs = logs
