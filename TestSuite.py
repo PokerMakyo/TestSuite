@@ -240,9 +240,9 @@ class TestCase(object):
             except KeyError:
                 pass
 
-        self.sblind = tcd['SB']
-        self.bblind = tcd['BB']
-        self.ante = tcd['ANTE']
+        self.sblind = float(tcd['SB'])
+        self.bblind = float(tcd['BB'])
+        self.ante = float(tcd['ANTE'])
 
     def _parse_actions(self, config_text):
         actions = []
