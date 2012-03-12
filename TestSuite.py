@@ -62,6 +62,8 @@ class TestCase(object):
         else:
             self._parse_txt(tcfile)
 
+        self._dump_history()
+
         self.players = []
         for a in self.pf_actions:
             if a[0] not in self.players:
@@ -77,6 +79,14 @@ class TestCase(object):
         # dealer is sitting before SB
         SB = self.pf_actions[0][0]
         self.dealer = self.players[self.players.index(SB) - 1]
+
+    def _dump_history(self):
+        fd = open('tshistory.py', 'w')
+        fd.write('pf = %s\n' % str(self.pf_actions))
+        fd.write('f = %s\n' % str(self.flop_actions))
+        fd.write('t = %s\n' % str(self.turn_actions))
+        fd.write('r = %s\n' % str(self.river_actions))
+        fd.close()
 
     def _parse_txt(self, tcfile):
         self.config = ConfigParser.SafeConfigParser()
