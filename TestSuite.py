@@ -410,6 +410,8 @@ class TestCase(object):
         else:
             if self.last_action[4] == button:
                 self.logs.append('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (self.last_action[4], button))
+            elif self.last_action[4] == 'K' and button == 'C':
+                self.logs.append('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (self.last_action[4], button))
             else:
                 self.logs.append('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (self.last_action[4], button))
 
