@@ -44,13 +44,13 @@ class MyForm(QtGui.QWidget):
                 self.form.aborted = False
                 if not self.all:
                     litm = self.form.ui.testcases.currentItem()
-                    self.form.ts.execute(litm.text(), litm, self.form.ui.logs)
+                    self.form.ts.execute(litm.text(), self.form.ui.logs)
                 else:
                     for i in range(0, self.form.ui.testcases.count()):
                         if self.form.aborted:
                             break
                         litm = self.form.ui.testcases.item(i)
-                        self.form.ts.execute(litm.text(), litm, self.form.ui.logs)
+                        self.form.ts.execute(litm.text(), self.form.ui.logs)
                 self.form._update_buttons(False)
 
         self.testing = Testing(self, all)
@@ -104,24 +104,8 @@ class MyCycle(object):
     def get_list(self):
         return [p for p in self.list if p]
 
-class TestCase(object):
-    def __init__(self, server, tcfile, logs = None):
-        self.status = 'not started'
-
-        self.aborted = False
-        self.handling = False
-
-        self.logs = logs
-
-        self.bround = None
-
-        self.tcfile = tcfile
-
-        self.server = server
-
-        server.register_function(self.event)
-        server.register_function(self.stop_handling)
-
+class TxtParser(object):
+    def __init__(self, tcfile):
         # table configuration
         self.sblind = None
         self.bblind = None
@@ -132,38 +116,17 @@ class TestCase(object):
         self.tournament = None
         self.balances = None
 
-        if tcfile[-3:] == '.pa':
-            self._parse_pa(tcfile)
-        else:
-            self._parse_txt(tcfile)
+        self._parse(tcfile)
 
-        self._dump_history()
+    def _parse_actions(self, config_text):
+        actions = []
+        for act in config_text.split(','):
+            act = act.strip()
+            act = act.split(' ')
+            actions.append([a.strip() for a in act])
+        return actions
 
-        self.players = []
-        for a in self.pf_actions:
-            if a[0] not in self.players:
-                self.players.append(a[0])
-            else:
-                break
-
-        # we want to have Hero always on chair == 0
-        for i in range(0, len(self.players) - self.players.index(self.hero)):
-            p = self.players.pop()
-            self.players.insert(0, p)
-
-        # dealer is sitting before SB
-        SB = self.pf_actions[0][0]
-        self.dealer = self.players[self.players.index(SB) - 1]
-
-    def _dump_history(self):
-        fd = open('tshistory.py', 'w')
-        fd.write('pf = %s\n' % str(self.pf_actions))
-        fd.write('f = %s\n' % str(self.flop_actions))
-        fd.write('t = %s\n' % str(self.turn_actions))
-        fd.write('r = %s\n' % str(self.river_actions))
-        fd.close()
-
-    def _parse_txt(self, tcfile):
+    def _parse(self, tcfile):
         self.config = ConfigParser.SafeConfigParser()
         self.config.read(tcfile)
 
@@ -234,7 +197,25 @@ class TestCase(object):
                 pass
                 # FIXME: handle it!
 
-    def _parse_pa(self, tcfile):
+class PaParser(object):
+    def __init__(self, tcfile):
+        self.sblind = None
+        self.bblind = None
+        self.bbet = None
+        self.ante = None
+        self.gtype = None
+        self.network = None
+        self.tournament = None
+        self.balances = None
+
+        self.pf_actions = ()
+        self.flop_actions = ()
+        self.turn_actions = ()
+        self.river_actions = ()
+
+        self._parse(tcfile)
+
+    def _parse(self, tcfile):
         fd = file(tcfile)
 
         tcd = {}
@@ -267,27 +248,30 @@ class TestCase(object):
         def get_history(pc, actions):
             history = []
             for player, action in izip(pc, actions):
+                if action == 'F':
+                    pc.remove(player)
                 if player == self.hero:
                     action = ("%s can CRFK do %s" % (player, action)).split(' ')
                     history.append(action)
                 else:
                     history.append((player, action))
-                if action == 'f':
-                    pc.remove(player)
             return history
 
-
+        print actions
         pc = MyCycle(players)
-        self.pf_actions = get_history(pc, actions[0])
+        try:
+            self.pf_actions = get_history(pc, actions[0])
 
-        pc = MyCycle(pc.get_list())
-        self.flop_actions = get_history(pc, actions[1])
+            pc = MyCycle(pc.get_list())
+            self.flop_actions = get_history(pc, actions[1])
 
-        pc = MyCycle(pc.get_list())
-        self.turn_actions = get_history(pc, actions[2])
+            pc = MyCycle(pc.get_list())
+            self.turn_actions = get_history(pc, actions[2])
 
-        pc = MyCycle(pc.get_list())
-        self.river_actions = get_history(pc, actions[3])
+            pc = MyCycle(pc.get_list())
+            self.river_actions = get_history(pc, actions[3])
+        except IndexError:
+            pass # don't have turn for example
 
         board = tcd['BOARD']
         cards = [board[i]+board[i+1] for i in range(0, len(board), 2)]
@@ -329,13 +313,62 @@ class TestCase(object):
         self.bblind = float(tcd['BB'])
         self.ante = float(tcd['ANTE'])
 
-    def _parse_actions(self, config_text):
-        actions = []
-        for act in config_text.split(','):
-            act = act.strip()
-            act = act.split(' ')
-            actions.append([a.strip() for a in act])
-        return actions
+
+class TestCase(object):
+    def __init__(self, server, tcfile, logs = None):
+        self.status = 'not started'
+
+        self.aborted = False
+        self.handling = False
+
+        self.logs = logs
+
+        self.bround = None
+
+        self.tcfile = tcfile
+
+        self.server = server
+
+        server.register_function(self.event)
+        server.register_function(self.stop_handling)
+
+
+        if tcfile[-3:] == '.pa':
+            self._parse_pa(tcfile)
+        else:
+            self._parse_txt(tcfile)
+
+        self._dump_history()
+
+        self.players = []
+        for a in self.parser.pf_actions:
+            if a[0] not in self.players:
+                self.players.append(a[0])
+            else:
+                break
+
+        # we want to have Hero always on chair == 0
+        for i in range(0, len(self.players) - self.players.index(self.parser.hero)):
+            p = self.players.pop()
+            self.players.insert(0, p)
+
+        # dealer is sitting before SB
+        SB = self.parser.pf_actions[0][0]
+        self.dealer = self.players[self.players.index(SB) - 1]
+
+    def _dump_history(self):
+        fd = open('tshistory.py', 'w')
+        fd.write('pf = %s\n' % str(self.parser.pf_actions))
+        fd.write('f = %s\n' % str(self.parser.flop_actions))
+        fd.write('t = %s\n' % str(self.parser.turn_actions))
+        fd.write('r = %s\n' % str(self.parser.river_actions))
+        fd.close()
+
+    def _parse_txt(self, tcfile):
+        self.parser = TxtParser(tcfile)
+
+    def _parse_pa(self, tcfile):
+        self.parser = PaParser(tcfile)
 
     def _reset_table(self, mm):
         for c in range(0, 10):
@@ -353,30 +386,30 @@ class TestCase(object):
         time.sleep(2)
 
     def _configure_table(self, mm):
-        if self.sblind:
-            mm.SetSBlind(self.sblind)
+        if self.parser.sblind:
+            mm.SetSBlind(self.parser.sblind)
 
-        if self.bblind:
-            mm.SetBBlind(self.bblind)
+        if self.parser.bblind:
+            mm.SetBBlind(self.parser.bblind)
 
-        if self.bbet:
-            mm.SetBBet(self.bbet)
+        if self.parser.bbet:
+            mm.SetBBet(self.parser.bbet)
 
-        if self.ante:
-            mm.SetAnte(self.ante)
+        if self.parser.ante:
+            mm.SetAnte(self.parser.ante)
 
-        if self.gtype:
-            if self.gtype in ('NL', 'PL', 'FL'):
-                mm.SetGType(self.gtype)
+        if self.parser.gtype:
+            if self.parser.gtype in ('NL', 'PL', 'FL'):
+                mm.SetGType(self.parser.gtype)
 
-        if self.network:
-            mm.SetNetwork(self.network)
+        if self.parser.network:
+            mm.SetNetwork(self.parser.network)
 
-        if self.tournament:
-            mm.SetTournament(self.tournament)
+        if self.parser.tournament:
+            mm.SetTournament(self.parser.tournament)
 
-        if self.balances:
-            for player, balance in self.balances:
+        if self.parser.balances:
+            for player, balance in self.parser.balances:
                 mm.SetBalance(self.players.index(player.strip()), float(balance.strip()))
 
         mm.Refresh()
@@ -392,39 +425,39 @@ class TestCase(object):
         mm.Refresh()
 
     def _set_hero(self, mm):
-        mm.SetCards(self.players.index(self.hero), self.hand[0], self.hand[1])
+        mm.SetCards(self.players.index(self.parser.hero), self.parser.hand[0], self.parser.hand[1])
 
     def _set_dealer(self, mm):
         mm.SetDealer(self.players.index(self.dealer))
 
     def _next_action(self, mm):
         self.bround = 'preflop'
-        for a in self.pf_actions:
+        for a in self.parser.pf_actions:
             yield a
 
-        if self.fc:
-            mm.SetFlopCards(self.fc[0], self.fc[1], self.fc[2])
+        if self.parser.fc:
+            mm.SetFlopCards(self.parser.fc[0], self.parser.fc[1], self.parser.fc[2])
 
         self.bround = 'flop'
-        for a in self.flop_actions:
+        for a in self.parser.flop_actions:
             yield a
 
-        if self.tc:
-            mm.SetTurnCard(self.tc)
+        if self.parser.tc:
+            mm.SetTurnCard(self.parser.tc)
         else:
             return
 
         self.bround = 'turn'
-        for a in self.turn_actions:
+        for a in self.parser.turn_actions:
             yield a
 
-        if self.rc:
-            mm.SetRiverCard(self.rc)
+        if self.parser.rc:
+            mm.SetRiverCard(self.parser.rc)
         else:
             return
 
         self.bround = 'river'
-        for a in self.river_actions:
+        for a in self.parser.river_actions:
             yield a
 
     def _do_action(self, action, mm):
@@ -509,16 +542,16 @@ class TestCase(object):
 
         if button == 'F' or expected == 'F':
             #print 'We are doing fold.'
-            mm.DoFold(self.players.index(self.hero))
+            mm.DoFold(self.players.index(self.parser.hero))
         elif button == 'C':
             #print 'We are doing call.'
-            mm.DoCall(self.players.index(self.hero))
+            mm.DoCall(self.players.index(self.parser.hero))
         elif button == 'K':
             #print 'We are doing check.'
             pass
         elif button == 'R':
             #print 'We are doing raise.'
-            mm.DoRaise(self.players.index(self.hero))
+            mm.DoRaise(self.players.index(self.parser.hero))
         mm.Refresh()
 
         self.execute()
@@ -561,7 +594,7 @@ class TestSuite(object):
     def load_testcases(self):
         self.tc_files = [file for file in os.listdir(self.tc_dir) if file[-4:] == '.txt' or file[-3:] == '.pa']
 
-    def execute(self, tcf, litm, logs):
+    def execute(self, tcf, logs):
         self.logs = logs
         self.tc = TestCase(self.server, os.path.join(self.tc_dir, str(tcf)), logs)
         self.hand_number += 1
