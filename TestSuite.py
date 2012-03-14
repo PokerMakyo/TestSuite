@@ -1,11 +1,88 @@
 import os
+import sys
 import time
 import xmlrpclib
 import ConfigParser
 
+from gen import Ui_Form
+from PyQt4 import QtCore, QtGui
+from PyQt4.QtGui import QTextCursor, QMessageBox
+
 from itertools import izip
 from SimpleXMLRPCServer import SimpleXMLRPCServer
-from threading import Thread
+
+import pdb
+
+lock = QtCore.QMutex()
+
+class MyForm(QtGui.QWidget):
+    def __init__(self, parent=None):
+        QtGui.QWidget.__init__(self, parent)
+        self.ui = Ui_Form()
+        self.ui.setupUi(self)
+        self.ts = None
+
+        self.aborted = False
+
+        self.reload_event()
+
+    def _update_buttons(self, executing):
+        self.ui.execute.setEnabled(not executing)
+        self.ui.execute_all.setEnabled(not executing)
+        self.ui.reload.setEnabled(not executing)
+        self.ui.stop.setEnabled(executing)
+
+    def handle_execute(self, all=False):
+        class Testing(QtCore.QThread):
+            def __init__(self, form, all):
+                QtCore.QThread.__init__(self)
+                self.form = form
+                self.all = all
+
+            def run(self):
+                self.form._update_buttons(True)
+                self.form.aborted = False
+                if not self.all:
+                    litm = self.form.ui.testcases.currentItem()
+                    self.form.ts.execute(litm.text(), litm, self.form.ui.logs)
+                else:
+                    for i in range(0, self.form.ui.testcases.count()):
+                        if self.form.aborted:
+                            break
+                        litm = self.form.ui.testcases.item(i)
+                        self.form.ts.execute(litm.text(), litm, self.form.ui.logs)
+                self.form._update_buttons(False)
+
+        self.testing = Testing(self, all)
+        self.testing.start()
+
+    def execute_event(self):
+        self.handle_execute()
+
+    def execute_all_event(self):
+        self.handle_execute(all=True)
+
+    def stop_event(self):
+        self.aborted = True
+        self.ts.stop()
+        self._update_buttons(False)
+
+    def logs_event(self):
+        c = self.ui.logs.textCursor()
+        c.movePosition(QTextCursor.End)
+        self.ui.logs.setTextCursor(c)
+
+    def reload_event(self):
+        try:
+            for i in range(0, self.ui.testcases.count()):
+                self.ui.testcases.takeItem(0)
+            self.ts = TestSuite()
+            for tcf in self.ts.tc_files:
+                self.ui.testcases.addItem(unicode(tcf))
+        except:
+            QMessageBox.warning(self,
+                            "Can't load testcases.",
+                            "Can't load testcases. Make sure that you have testcases directory and testcases there.")
 
 class MyCycle(object):
     def __init__(self, lst):
@@ -28,20 +105,18 @@ class MyCycle(object):
         return [p for p in self.list if p]
 
 class TestCase(object):
-    def __init__(self, mm, server, tcfile, litm = None, logs = None):
+    def __init__(self, server, tcfile, logs = None):
         self.status = 'not started'
 
         self.aborted = False
         self.handling = False
 
-        self.litm = litm
         self.logs = logs
 
         self.bround = None
 
         self.tcfile = tcfile
 
-        self.mm = mm
         self.server = server
 
         server.register_function(self.event)
@@ -262,79 +337,80 @@ class TestCase(object):
             actions.append([a.strip() for a in act])
         return actions
 
-    def _reset_table(self):
+    def _reset_table(self, mm):
         for c in range(0, 10):
-            self.mm.SetActive(c, False)
-            self.mm.SetSeated(c, False)
-            self.mm.SetCards(c, 'N', 'N')
-            self.mm.SetBalance(c, 1000.0)
-            self.mm.SetBet(c, 0.0)
-            self.mm.SetFlopCards('N', 'N', 'N')
-            self.mm.SetTurnCard('N')
-            self.mm.SetRiverCard('N')
+            mm.SetActive(c, False)
+            mm.SetSeated(c, False)
+            mm.SetCards(c, 'N', 'N')
+            mm.SetBalance(c, 1000.0)
+            mm.SetBet(c, 0.0)
+            mm.SetFlopCards('N', 'N', 'N')
+            mm.SetTurnCard('N')
+            mm.SetRiverCard('N')
+            mm.SetTournament(True)
         for b in 'FCKRA':
-            self.mm.SetButton(b, False)
+            mm.SetButton(b, False)
         time.sleep(2)
 
-    def _configure_table(self):
+    def _configure_table(self, mm):
         if self.sblind:
-            self.mm.SetSBlind(self.sblind)
+            mm.SetSBlind(self.sblind)
 
         if self.bblind:
-            self.mm.SetBBlind(self.bblind)
+            mm.SetBBlind(self.bblind)
 
         if self.bbet:
-            self.mm.SetBBet(self.bbet)
+            mm.SetBBet(self.bbet)
 
         if self.ante:
-            self.mm.SetAnte(self.ante)
+            mm.SetAnte(self.ante)
 
         if self.gtype:
             if self.gtype in ('NL', 'PL', 'FL'):
-                self.mm.SetGType(self.gtype)
+                mm.SetGType(self.gtype)
 
         if self.network:
-            self.mm.SetNetwork(self.network)
+            mm.SetNetwork(self.network)
 
         if self.tournament:
-            self.mm.SetTournament(self.tournament)
+            mm.SetTournament(self.tournament)
 
         if self.balances:
             for player, balance in self.balances:
-                self.mm.SetBalance(self.players.index(player.strip()), float(balance.strip()))
+                mm.SetBalance(self.players.index(player.strip()), float(balance.strip()))
 
-        self.mm.Refresh()
+        mm.Refresh()
 
-    def _add_players(self):
+    def _add_players(self, mm):
         c = 0
         for p in self.players:
-            self.mm.SetActive(c, True)
-            self.mm.SetSeated(c, True)
-            self.mm.SetCards(c, 'B', 'B')
-            self.mm.SetName(c, p)
+            mm.SetActive(c, True)
+            mm.SetSeated(c, True)
+            mm.SetCards(c, 'B', 'B')
+            mm.SetName(c, p)
             c += 1
-        self.mm.Refresh()
+        mm.Refresh()
 
-    def _set_hero(self):
-        self.mm.SetCards(self.players.index(self.hero), self.hand[0], self.hand[1])
+    def _set_hero(self, mm):
+        mm.SetCards(self.players.index(self.hero), self.hand[0], self.hand[1])
 
-    def _set_dealer(self):
-        self.mm.SetDealer(self.players.index(self.dealer))
+    def _set_dealer(self, mm):
+        mm.SetDealer(self.players.index(self.dealer))
 
-    def _next_action(self):
+    def _next_action(self, mm):
         self.bround = 'preflop'
         for a in self.pf_actions:
             yield a
 
         if self.fc:
-            self.mm.SetFlopCards(self.fc[0], self.fc[1], self.fc[2])
+            mm.SetFlopCards(self.fc[0], self.fc[1], self.fc[2])
 
         self.bround = 'flop'
         for a in self.flop_actions:
             yield a
 
         if self.tc:
-            self.mm.SetTurnCard(self.tc)
+            mm.SetTurnCard(self.tc)
         else:
             return
 
@@ -343,7 +419,7 @@ class TestCase(object):
             yield a
 
         if self.rc:
-            self.mm.SetRiverCard(self.rc)
+            mm.SetRiverCard(self.rc)
         else:
             return
 
@@ -351,7 +427,7 @@ class TestCase(object):
         for a in self.river_actions:
             yield a
 
-    def _do_action(self, action):
+    def _do_action(self, action, mm):
         self.last_action = action
         if not self.logs:
             print 'Processing %s action: %s' % (self.bround, action)
@@ -360,52 +436,54 @@ class TestCase(object):
         time.sleep(0.5)
         if len(action) == 2:
             if action[1] == 'S':
-                self.mm.PostSB(self.players.index(action[0]))
+                mm.PostSB(self.players.index(action[0]))
             elif action[1] == 'B':
-                self.mm.PostBB(self.players.index(action[0]))
+                mm.PostBB(self.players.index(action[0]))
             elif action[1] == 'C':
-                self.mm.DoCall(self.players.index(action[0]))
+                mm.DoCall(self.players.index(action[0]))
             elif action[1] == 'R':
-                self.mm.DoRaise(self.players.index(action[0]))
+                mm.DoRaise(self.players.index(action[0]))
             elif action[1] == 'F':
-                self.mm.DoFold(self.players.index(action[0]))
-            self.mm.Refresh()
+                mm.DoFold(self.players.index(action[0]))
+            mm.Refresh()
             return False
         elif len(action) == 3:
             if action[1] == 'R':
-                self.mm.DoRaise(self.players.index(action[0]),float(action[2]))
-            self.mm.Refresh()
+                mm.DoRaise(self.players.index(action[0]),float(action[2]))
+            mm.Refresh()
             return False
         else:
             # it's out turn, we need to show buttons
             for b in action[2]:
-                self.mm.SetButton(b, True)
-            self.mm.Refresh()
+                mm.SetButton(b, True)
+            mm.Refresh()
 
             return True
 
     def execute(self, hand_number = None):
+        mm = xmlrpclib.ServerProxy('http://localhost:9092')
+
         if self.status == 'not started':
             if hand_number:
-                self.mm.SetHandNumber(hand_number)
+                mm.SetHandNumber(hand_number)
             if not self.logs:
                 print '    ====    %s    ====' % self.tcfile
             else:
                 self.logs.append('\n    <b>====    %s    ====</b>\n' % self.tcfile)
-            self._reset_table()
-            self._configure_table()
-            self.mm.ProvideEventsHandling()
-            self._add_players()
-            self._set_hero()
-            self._set_dealer()
+            self._reset_table(mm)
+            self._configure_table(mm)
+            mm.ProvideEventsHandling()
+            self._add_players(mm)
+            self._set_hero(mm)
+            self._set_dealer(mm)
             self.status = 'started'
-            self._next_action = self._next_action() # yea, ugly
+            self._next_action = self._next_action(mm) # yea, ugly
 
         ra = False
         for action in self._next_action:
             if self.aborted:
                 return
-            ra = self._do_action(action)
+            ra = self._do_action(action, mm)
             if ra:
                 self.handling = True
                 self.server.handle_request() # need to wait for OH action
@@ -415,37 +493,54 @@ class TestCase(object):
             self.status = 'done'
 
     def handle_event(self, button):
-        if not self.logs:
-            print 'Expected %s, got %s.' % (self.last_action[4], button)
-        else:
-            if self.last_action[4] == button:
-                self.logs.append('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (self.last_action[4], button))
-            elif self.last_action[4] == 'K' and button == 'C':
-                self.logs.append('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (self.last_action[4], button))
-            else:
-                self.logs.append('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (self.last_action[4], button))
+        mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
-        if button == 'F':
+        expected = self.last_action[4]
+        stop = False
+        if not self.logs:
+            print 'Expected %s, got %s.' % (expected, button)
+        else:
+            if expected == button:
+                self.logs.append('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
+            elif (expected == 'K' and button == 'C') or (expected == 'F' and button == 'K'):
+                self.logs.append('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
+            else:
+                self.logs.append('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
+
+        if button == 'F' or expected == 'F':
             #print 'We are doing fold.'
-            self.mm.DoFold(self.players.index(self.hero))
+            mm.DoFold(self.players.index(self.hero))
         elif button == 'C':
             #print 'We are doing call.'
-            self.mm.DoCall(self.players.index(self.hero))
+            mm.DoCall(self.players.index(self.hero))
         elif button == 'K':
             #print 'We are doing check.'
             pass
         elif button == 'R':
             #print 'We are doing raise.'
-            self.mm.DoRaise(self.players.index(self.hero))
-        self.mm.Refresh()
+            mm.DoRaise(self.players.index(self.hero))
+        mm.Refresh()
 
         self.execute()
 
     def event(self, button):
+        mm = xmlrpclib.ServerProxy('http://localhost:9092')
+
         for b in 'FCKRA':
-            self.mm.SetButton(b, False)
-        self.mm.Refresh()
-        Thread(target=self.handle_event, args=(button,)).start()
+            mm.SetButton(b, False)
+
+        class EventWaiter(QtCore.QThread):
+            def __init__(self, handle_event, button):
+                QtCore.QThread.__init__(self)
+                self.handle_event = handle_event
+                self.button = button
+            def run(self):
+                self.handle_event(button)
+
+        self.event_waiter = EventWaiter(self.handle_event, button)
+        self.event_waiter.start()
+
+        mm.Refresh()
 
     def stop_handling(self):
         return 0
@@ -458,8 +553,7 @@ class TestSuite(object):
 
         self.logs = None
 
-        self.server = SimpleXMLRPCServer(("localhost", 9093))
-        self.mm = xmlrpclib.ServerProxy('http://localhost:9092')
+        self.server = SimpleXMLRPCServer(("localhost", 9093), logRequests = False)
 
         self.load_testcases()
         self.hand_number = 0
@@ -469,7 +563,7 @@ class TestSuite(object):
 
     def execute(self, tcf, litm, logs):
         self.logs = logs
-        self.tc = TestCase(self.mm, self.server, os.path.join(self.tc_dir, str(tcf)), litm, logs)
+        self.tc = TestCase(self.server, os.path.join(self.tc_dir, str(tcf)), logs)
         self.hand_number += 1
         self.tc.execute(self.hand_number)
         while self.tc.status != 'done':
@@ -482,9 +576,18 @@ class TestSuite(object):
             myself.stop_handling()
         self.logs.append('<font color="#FF0000"><b>Stopped...</b></font><font color="#000000"> </font>')
 
-if __name__ == '__main__':
-    ts = TestSuite()
-    ts.execute_all()
+
+def start_gui():
+    app = QtGui.QApplication(sys.argv)
+    myapp = MyForm()
+    myapp.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    try:
+        start_gui()
+    except Exception, e:
+        pdb.set_trace()
 
 # vim: filetype=python syntax=python expandtab shiftwidth=4 softtabstop=4
 
