@@ -14,6 +14,24 @@
    <string>TestSuite</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <item row="2" column="0">
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <item>
+      <widget class="QLineEdit" name="directory">
+       <property name="text">
+        <string>testcases</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="get_directory">
+       <property name="text">
+        <string>TestCases</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
    <item row="0" column="0">
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
@@ -96,7 +114,7 @@
      </item>
     </layout>
    </item>
-   <item row="1" column="0">
+   <item row="5" column="0">
     <layout class="QVBoxLayout" name="verticalLayout_4">
      <item>
       <widget class="QLabel" name="label">
@@ -200,6 +218,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>get_directory</sender>
+   <signal>clicked()</signal>
+   <receiver>Form</receiver>
+   <slot>get_directory_event()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>337</x>
+     <y>253</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>192</x>
+     <y>252</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>execute_event()</slot>
@@ -207,5 +241,6 @@
   <slot>reload_event()</slot>
   <slot>logs_event()</slot>
   <slot>stop_event()</slot>
+  <slot>get_directory_event()</slot>
  </slots>
 </ui>

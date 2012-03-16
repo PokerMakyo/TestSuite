@@ -23,8 +23,9 @@ class MyForm(QtGui.QWidget):
         self.ts = None
 
         self.aborted = False
+        self.server = SimpleXMLRPCServer(("localhost", 9093), logRequests = False)
 
-        self.reload_event()
+        #self.reload_event()
 
     def _update_buttons(self, executing):
         self.ui.execute.setEnabled(not executing)
@@ -73,16 +74,16 @@ class MyForm(QtGui.QWidget):
         self.ui.logs.setTextCursor(c)
 
     def reload_event(self):
-        try:
-            for i in range(0, self.ui.testcases.count()):
-                self.ui.testcases.takeItem(0)
-            self.ts = TestSuite()
-            for tcf in self.ts.tc_files:
-                self.ui.testcases.addItem(unicode(tcf))
-        except:
-            QMessageBox.warning(self,
-                            "Can't load testcases.",
-                            "Can't load testcases. Make sure that you have testcases directory and testcases there.")
+        pdb.set_trace()
+        for i in range(0, self.ui.testcases.count()):
+            self.ui.testcases.takeItem(0)
+        pdb.set_trace()
+        self.ts = TestSuite(self.ui.directory.displayText(), self.server)
+        for tcf in self.ts.tc_files:
+            self.ui.testcases.addItem(unicode(tcf))
+
+    def get_directory_event(self):
+        self.ui.directory.setText(QtGui.QFileDialog.getExistingDirectory())
 
 class MyCycle(object):
     def __init__(self, lst):
@@ -579,15 +580,14 @@ class TestCase(object):
         return 0
 
 class TestSuite(object):
-    def __init__(self):
-        self.tc_dir = 'testcases'
+    def __init__(self, directory, server):
+        self.tc_dir = directory
 
         self.tc = None
 
         self.logs = None
 
-        self.server = SimpleXMLRPCServer(("localhost", 9093), logRequests = False)
-
+        self.server = server
         self.load_testcases()
         self.hand_number = 0
 
