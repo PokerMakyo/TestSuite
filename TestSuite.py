@@ -257,10 +257,10 @@ class PaParser(object):
                 if action == 'F':
                     pc.remove(player)
                 if player == self.hero:
-                    if action == 's':
-                        action = 'S'
+                    if action == 'S':
+                        action = (player, 'S')
                     elif action == 'B':
-                        pass
+                        action = (player, 'B')
                     else:
                         action = ("%s can CRFK do %s" % (player, action)).split(' ')
                     history.append(action)
