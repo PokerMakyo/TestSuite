@@ -230,6 +230,8 @@ class PaParser(object):
 
         for e in fd.readline()[:-1].split(';'):
             key, value = e.split('=')
+            if key[:2] == 'PN':
+                value = value.replace(' ', '')
             tcd[key] = value
 
         sb = int(tcd['SBS'])
@@ -243,13 +245,9 @@ class PaParser(object):
             except KeyError:
                 pass
 
-        print players
-
         actions = tcd['SEQ'].split('/')
 
         actions = [a.replace('b', 'r').upper() for a in actions]
-
-        print 'preflop'
 
         self.hero = tcd['HERO']
 
@@ -259,13 +257,17 @@ class PaParser(object):
                 if action == 'F':
                     pc.remove(player)
                 if player == self.hero:
-                    action = ("%s can CRFK do %s" % (player, action)).split(' ')
+                    if action == 's':
+                        action = 'S'
+                    elif action == 'B':
+                        pass
+                    else:
+                        action = ("%s can CRFK do %s" % (player, action)).split(' ')
                     history.append(action)
                 else:
                     history.append((player, action))
             return history
 
-        print actions
         pc = MyCycle(players)
         try:
             self.pf_actions = get_history(pc, actions[0])
@@ -305,8 +307,6 @@ class PaParser(object):
                 ntp[tcd['PN%i' % i]] = i
             except KeyError:
                 pass
-
-        print ntp
 
         self.hand = [tcd['PC%i' % ntp[self.hero]][:2], tcd['PC%i' % ntp[self.hero]][-2:]]
 
