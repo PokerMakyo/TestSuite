@@ -7,6 +7,7 @@ import ConfigParser
 from gen import Ui_Form
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtGui import QTextCursor, QMessageBox
+from PyQt4.QtCore import SIGNAL, QObject
 
 from itertools import izip
 from SimpleXMLRPCServer import SimpleXMLRPCServer
@@ -20,18 +21,23 @@ class MyForm(QtGui.QWidget):
         QtGui.QWidget.__init__(self, parent)
         self.ui = Ui_Form()
         self.ui.setupUi(self)
+
+        self.ui.testcases.setSortingEnabled(True)
         self.ts = None
 
         self.aborted = False
         self.server = SimpleXMLRPCServer(("localhost", 9093), logRequests = False)
 
-        #self.reload_event()
+        self.reload_event()
 
     def _update_buttons(self, executing):
         self.ui.execute.setEnabled(not executing)
         self.ui.execute_all.setEnabled(not executing)
         self.ui.reload.setEnabled(not executing)
         self.ui.stop.setEnabled(executing)
+
+    def add_log(self, message):
+        self.ui.logs.append(message)
 
     def handle_execute(self, all=False):
         class Testing(QtCore.QThread):
@@ -45,13 +51,13 @@ class MyForm(QtGui.QWidget):
                 self.form.aborted = False
                 if not self.all:
                     litm = self.form.ui.testcases.currentItem()
-                    self.form.ts.execute(litm.text(), self.form.ui.logs)
+                    self.form.ts.execute(litm.text())
                 else:
                     for i in range(0, self.form.ui.testcases.count()):
                         if self.form.aborted:
                             break
                         litm = self.form.ui.testcases.item(i)
-                        self.form.ts.execute(litm.text(), self.form.ui.logs)
+                        self.form.ts.execute(litm.text())
                 self.form._update_buttons(False)
 
         self.testing = Testing(self, all)
@@ -74,13 +80,14 @@ class MyForm(QtGui.QWidget):
         self.ui.logs.setTextCursor(c)
 
     def reload_event(self):
-        pdb.set_trace()
         for i in range(0, self.ui.testcases.count()):
             self.ui.testcases.takeItem(0)
-        pdb.set_trace()
-        self.ts = TestSuite(self.ui.directory.displayText(), self.server)
+        self.ts = TestSuite(str(self.ui.directory.displayText()), self.server, self)
         for tcf in self.ts.tc_files:
             self.ui.testcases.addItem(unicode(tcf))
+
+    def add_log(self, message):
+        self.ui.logs.append(message)
 
     def get_directory_event(self):
         self.ui.directory.setText(QtGui.QFileDialog.getExistingDirectory())
@@ -315,24 +322,22 @@ class PaParser(object):
         self.ante = float(tcd['ANTE'])
 
 
-class TestCase(object):
-    def __init__(self, server, tcfile, logs = None):
+class TestCase(QObject):
+    def __init__(self, server, tcfile, form):
+        QObject.__init__(self)
+
         self.status = 'not started'
 
         self.aborted = False
         self.handling = False
-
-        self.logs = logs
-
+        self.form = form
         self.bround = None
-
         self.tcfile = tcfile
-
         self.server = server
-
-        server.register_function(self.event)
+        server.register_function(self.button_event, 'event')
         server.register_function(self.stop_handling)
 
+        self.connect(self, SIGNAL('add_log'), form.add_log, QtCore.Qt.QueuedConnection)
 
         if tcfile[-3:] == '.pa':
             self._parse_pa(tcfile)
@@ -356,6 +361,9 @@ class TestCase(object):
         # dealer is sitting before SB
         SB = self.parser.pf_actions[0][0]
         self.dealer = self.players[self.players.index(SB) - 1]
+
+    def add_log(self, message):
+        self.emit(SIGNAL('add_log'), message)
 
     def _dump_history(self):
         fd = open('tshistory.py', 'w')
@@ -384,7 +392,7 @@ class TestCase(object):
             mm.SetTournament(True)
         for b in 'FCKRA':
             mm.SetButton(b, False)
-        time.sleep(2)
+        time.sleep(0.5)
 
     def _configure_table(self, mm):
         if self.parser.sblind:
@@ -463,10 +471,7 @@ class TestCase(object):
 
     def _do_action(self, action, mm):
         self.last_action = action
-        if not self.logs:
-            print 'Processing %s action: %s' % (self.bround, action)
-        else:
-            self.logs.append('Processing %s action: %s' % (self.bround, action))
+        self.add_log('Processing %s action: %s' % (self.bround, action))
         time.sleep(0.5)
         if len(action) == 2:
             if action[1] == 'S':
@@ -500,10 +505,7 @@ class TestCase(object):
         if self.status == 'not started':
             if hand_number:
                 mm.SetHandNumber(hand_number)
-            if not self.logs:
-                print '    ====    %s    ====' % self.tcfile
-            else:
-                self.logs.append('\n    <b>====    %s    ====</b>\n' % self.tcfile)
+                self.add_log('\n    <b>====    %s    ====</b>\n' % self.tcfile)
             self._reset_table(mm)
             self._configure_table(mm)
             mm.ProvideEventsHandling()
@@ -526,20 +528,17 @@ class TestCase(object):
         if not ra:
             self.status = 'done'
 
-    def handle_event(self, button):
+    def handle_button(self, button):
         mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
         expected = self.last_action[4]
         stop = False
-        if not self.logs:
-            print 'Expected %s, got %s.' % (expected, button)
+        if expected == button:
+            self.add_log('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
+        elif (expected == 'K' and button == 'C') or (expected == 'F' and button == 'K'):
+            self.add_log('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
         else:
-            if expected == button:
-                self.logs.append('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
-            elif (expected == 'K' and button == 'C') or (expected == 'F' and button == 'K'):
-                self.logs.append('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
-            else:
-                self.logs.append('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
+            self.add_log('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
 
         if button == 'F' or expected == 'F':
             #print 'We are doing fold.'
@@ -557,21 +556,22 @@ class TestCase(object):
 
         self.execute()
 
-    def event(self, button):
+    def button_event(self, button):
+        print button, 'clicked'
         mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
         for b in 'FCKRA':
             mm.SetButton(b, False)
 
         class EventWaiter(QtCore.QThread):
-            def __init__(self, handle_event, button):
+            def __init__(self, handle_button, button):
                 QtCore.QThread.__init__(self)
-                self.handle_event = handle_event
+                self.handle_button = handle_button
                 self.button = button
             def run(self):
-                self.handle_event(button)
+                self.handle_button(button)
 
-        self.event_waiter = EventWaiter(self.handle_event, button)
+        self.event_waiter = EventWaiter(self.handle_button, button)
         self.event_waiter.start()
 
         mm.Refresh()
@@ -579,35 +579,37 @@ class TestCase(object):
     def stop_handling(self):
         return 0
 
-class TestSuite(object):
-    def __init__(self, directory, server):
+class TestSuite(QObject):
+    def __init__(self, directory, server, form):
+        QObject.__init__(self)
+
         self.tc_dir = directory
 
         self.tc = None
-
-        self.logs = None
 
         self.server = server
         self.load_testcases()
         self.hand_number = 0
 
+        self.form = form
+        self.connect(self, SIGNAL('add_log'), form.add_log, QtCore.Qt.QueuedConnection)
+
     def load_testcases(self):
         self.tc_files = [file for file in os.listdir(self.tc_dir) if file[-4:] == '.txt' or file[-3:] == '.pa']
 
-    def execute(self, tcf, logs):
-        self.logs = logs
-        self.tc = TestCase(self.server, os.path.join(self.tc_dir, str(tcf)), logs)
+    def execute(self, tcf):
+        self.tc = TestCase(self.server, os.path.join(self.tc_dir, str(tcf)), self.form)
         self.hand_number += 1
         self.tc.execute(self.hand_number)
         while self.tc.status != 'done':
-            time.sleep(1)
+            time.sleep(0.5)
 
     def stop(self):
         self.tc.aborted = True
         if self.tc.handling:
             myself = xmlrpclib.ServerProxy('http://localhost:9093')
             myself.stop_handling()
-        self.logs.append('<font color="#FF0000"><b>Stopped...</b></font><font color="#000000"> </font>')
+        self.emit(SIGNAL('add_log'), '<font color="#FF0000"><b>Stopped...</b></font><font color="#000000"> </font>')
 
 
 def start_gui():
