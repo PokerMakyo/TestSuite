@@ -19,7 +19,7 @@
      <item>
       <widget class="QLineEdit" name="directory">
        <property name="text">
-        <string>testcases</string>
+        <string/>
        </property>
       </widget>
      </item>

@@ -12,8 +12,6 @@ from PyQt4.QtCore import SIGNAL, QObject
 from itertools import izip
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 
-import pdb
-
 lock = QtCore.QMutex()
 
 class MyForm(QtGui.QWidget):
@@ -27,8 +25,6 @@ class MyForm(QtGui.QWidget):
 
         self.aborted = False
         self.server = SimpleXMLRPCServer(("localhost", 9093), logRequests = False)
-
-        self.reload_event()
 
     def _update_buttons(self, executing):
         self.ui.execute.setEnabled(not executing)
@@ -91,6 +87,7 @@ class MyForm(QtGui.QWidget):
 
     def get_directory_event(self):
         self.ui.directory.setText(QtGui.QFileDialog.getExistingDirectory())
+        self.reload_event()
 
 class MyCycle(object):
     def __init__(self, lst):
@@ -225,7 +222,6 @@ class PaParser(object):
 
     def _parse(self, tcfile):
         fd = file(tcfile)
-
         tcd = {}
 
         for e in fd.readline()[:-1].split(';'):
@@ -492,6 +488,7 @@ class TestCase(QObject):
             mm.Refresh()
             return False
         else:
+            print str(action)
             # it's out turn, we need to show buttons
             for b in action[2]:
                 mm.SetButton(b, True)
@@ -619,10 +616,7 @@ def start_gui():
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    try:
-        start_gui()
-    except Exception, e:
-        pdb.set_trace()
+    start_gui()
 
 # vim: filetype=python syntax=python expandtab shiftwidth=4 softtabstop=4
 
