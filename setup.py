@@ -51,5 +51,5 @@ setup(
         },
 
     # targets to build
-    windows = ["gui.py"],
+    windows = ["TestSuite.py"],
     )
