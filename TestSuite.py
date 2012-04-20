@@ -515,6 +515,7 @@ class TestCase(QObject):
         ra = False
         for action in self._next_action:
             if self.aborted:
+                self.status = 'done'
                 return
             ra = self._do_action(action, mm)
             if ra:
@@ -540,6 +541,8 @@ class TestCase(QObject):
         if button == 'F' or expected == 'F':
             #print 'We are doing fold.'
             mm.DoFold(self.players.index(self.parser.hero))
+            # Abort testcase after bot fold
+            self.aborted = True
         elif button == 'C':
             #print 'We are doing call.'
             mm.DoCall(self.players.index(self.parser.hero))
