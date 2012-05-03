@@ -391,6 +391,8 @@ class TestCase(QObject):
         time.sleep(0.5)
 
     def _configure_table(self, mm):
+        mm.SetPot(0.0)
+
         if self.parser.sblind:
             mm.SetSBlind(self.parser.sblind)
 
