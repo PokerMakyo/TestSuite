@@ -481,7 +481,7 @@ class TestCase(QObject):
                 mm.DoRaise(self.players.index(action[0]),float(action[2]))
             return False
         else:
-            print str(action)
+            #print str(action)
             # it's out turn, we need to show buttons
             for b in action[2]:
                 mm.SetButton(b, True)
