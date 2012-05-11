@@ -6,13 +6,10 @@ import ConfigParser
 
 from gen import Ui_Form
 from PyQt4 import QtCore, QtGui
-from PyQt4.QtGui import QTextCursor, QMessageBox
+from PyQt4.QtGui import QTextCursor
 from PyQt4.QtCore import SIGNAL, QObject
 
 from itertools import izip
-from SimpleXMLRPCServer import SimpleXMLRPCServer
-
-lock = QtCore.QMutex()
 
 class MyForm(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -24,7 +21,6 @@ class MyForm(QtGui.QWidget):
         self.ts = None
 
         self.aborted = False
-        self.server = SimpleXMLRPCServer(("localhost", 9093), logRequests = False)
 
     def _update_buttons(self, executing):
         self.ui.execute.setEnabled(not executing)
@@ -78,7 +74,8 @@ class MyForm(QtGui.QWidget):
     def reload_event(self):
         for i in range(0, self.ui.testcases.count()):
             self.ui.testcases.takeItem(0)
-        self.ts = TestSuite(str(self.ui.directory.displayText()), self.server, self)
+
+        self.ts = TestSuite(str(self.ui.directory.displayText()), self)
         for tcf in self.ts.tc_files:
             self.ui.testcases.addItem(unicode(tcf))
 
@@ -319,19 +316,15 @@ class PaParser(object):
 
 
 class TestCase(QObject):
-    def __init__(self, server, tcfile, form):
+    def __init__(self, tcfile, form):
         QObject.__init__(self)
 
         self.status = 'not started'
 
         self.aborted = False
-        self.handling = False
         self.form = form
         self.bround = None
         self.tcfile = tcfile
-        self.server = server
-        server.register_function(self.button_event, 'event')
-        server.register_function(self.stop_handling)
 
         self.connect(self, SIGNAL('add_log'), form.add_log, QtCore.Qt.QueuedConnection)
 
@@ -482,20 +475,16 @@ class TestCase(QObject):
                 mm.DoRaise(self.players.index(action[0]))
             elif action[1] == 'F':
                 mm.DoFold(self.players.index(action[0]))
-            mm.Refresh()
             return False
         elif len(action) == 3:
             if action[1] == 'R':
                 mm.DoRaise(self.players.index(action[0]),float(action[2]))
-            mm.Refresh()
             return False
         else:
             print str(action)
             # it's out turn, we need to show buttons
             for b in action[2]:
                 mm.SetButton(b, True)
-            mm.Refresh()
-
             return True
 
     def execute(self, hand_number = None):
@@ -507,26 +496,27 @@ class TestCase(QObject):
                 self.add_log('\n    <b>====    %s    ====</b>\n' % self.tcfile)
             self._reset_table(mm)
             self._configure_table(mm)
-            mm.ProvideEventsHandling()
             self._add_players(mm)
             self._set_hero(mm)
             self._set_dealer(mm)
             self.status = 'started'
             self._next_action = self._next_action(mm) # yea, ugly
 
-        ra = False
         for action in self._next_action:
             if self.aborted:
                 self.status = 'done'
                 return
             ra = self._do_action(action, mm)
             if ra:
-                self.handling = True
-                self.server.handle_request() # need to wait for OH action
-                self.handling = False
-                break;
-        if not ra:
-            self.status = 'done'
+                try:
+                    button = mm.GetAction()
+                except:
+                    break
+
+                for b in 'FCKRA':
+                    mm.SetButton(b, False)
+                self.handle_button(button)
+        self.status = 'done'
 
     def handle_button(self, button):
         mm = xmlrpclib.ServerProxy('http://localhost:9092')
@@ -556,40 +546,17 @@ class TestCase(QObject):
             mm.DoRaise(self.players.index(self.parser.hero))
         mm.Refresh()
 
-        self.execute()
-
-    def button_event(self, button):
-        print button, 'clicked'
-        mm = xmlrpclib.ServerProxy('http://localhost:9092')
-
-        for b in 'FCKRA':
-            mm.SetButton(b, False)
-
-        class EventWaiter(QtCore.QThread):
-            def __init__(self, handle_button, button):
-                QtCore.QThread.__init__(self)
-                self.handle_button = handle_button
-                self.button = button
-            def run(self):
-                self.handle_button(button)
-
-        self.event_waiter = EventWaiter(self.handle_button, button)
-        self.event_waiter.start()
-
-        mm.Refresh()
-
     def stop_handling(self):
         return 0
 
 class TestSuite(QObject):
-    def __init__(self, directory, server, form):
+    def __init__(self, directory, form):
         QObject.__init__(self)
 
         self.tc_dir = directory
 
         self.tc = None
 
-        self.server = server
         self.load_testcases()
         self.hand_number = 0
 
@@ -600,7 +567,7 @@ class TestSuite(QObject):
         self.tc_files = [file for file in os.listdir(self.tc_dir) if file[-4:] == '.txt' or file[-3:] == '.pa']
 
     def execute(self, tcf):
-        self.tc = TestCase(self.server, os.path.join(self.tc_dir, str(tcf)), self.form)
+        self.tc = TestCase(os.path.join(self.tc_dir, str(tcf)), self.form)
         self.hand_number += 1
         self.tc.execute(self.hand_number)
         while self.tc.status != 'done':
@@ -608,9 +575,8 @@ class TestSuite(QObject):
 
     def stop(self):
         self.tc.aborted = True
-        if self.tc.handling:
-            myself = xmlrpclib.ServerProxy('http://localhost:9093')
-            myself.stop_handling()
+        mm = xmlrpclib.ServerProxy('http://localhost:9092')
+        mm.CancelGetAction()
         self.emit(SIGNAL('add_log'), '<font color="#FF0000"><b>Stopped...</b></font><font color="#000000"> </font>')
 
 
