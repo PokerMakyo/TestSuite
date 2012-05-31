@@ -507,30 +507,44 @@ class TestCase(QObject):
                 self.status = 'done'
                 return
             ra = self._do_action(action, mm)
+            mm.Refresh()
             if ra:
                 try:
-                    button = mm.GetAction()
+                    result = mm.GetAction()
+                    button = result['button']
+                    betsize = result['betsize']
                 except:
                     break
 
                 for b in 'FCKRA':
                     mm.SetButton(b, False)
-                self.handle_button(button)
+                self.handle_button(button, betsize)
         self.status = 'done'
 
-    def handle_button(self, button):
+    def handle_button(self, button, betsize):
         mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
-        expected = self.last_action[4]
-        stop = False
-        if expected == button:
-            self.add_log('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
-        elif (expected == 'K' and button == 'C') or (expected == 'F' and button == 'K'):
-            self.add_log('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
-        else:
-            self.add_log('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected, button))
+        expected_button = self.last_action[4]
+        expected_betsize = None
+        if len(self.last_action) == 6:
+            expected_betsize = self.last_action[5]
 
-        if button == 'F' or expected == 'F':
+
+        stop = False
+        if expected_button == button:
+            self.add_log('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
+        elif (expected_button == 'K' and button == 'C') or (expected_button == 'F' and button == 'K'):
+            self.add_log('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
+        else:
+            self.add_log('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
+
+        if expected_betsize:
+            if expected_betsize == betsize:
+                self.add_log('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_betsize, betsize))
+            else:
+                self.add_log('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_betsize, betsize))
+
+        if button == 'F' or expected_button == 'F':
             #print 'We are doing fold.'
             mm.DoFold(self.players.index(self.parser.hero))
             # Abort testcase after bot fold
