@@ -1,0 +1,13 @@
+[table]
+sblind = 1
+bblind = 2
+bbet = 4
+ante = 0
+gtype = NL
+network = Party
+tournament = False
+balances = Hero 240, V1 201, V2 199, V3 205, V4 158, V5 197
+ 
+[preflop]
+Hand = Ks, As
+Actions = V1 S, V2 B, V3 F, V4 C, V5 F, Hero can FCRA do R 7

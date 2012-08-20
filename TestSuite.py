@@ -557,7 +557,11 @@ class TestCase(QObject):
             pass
         elif button == 'R':
             #print 'We are doing raise.'
-            mm.DoRaise(self.players.index(self.parser.hero))
+            if expected_betsize:
+                mm.DoRaise(self.players.index(self.parser.hero), float(betsize))
+            else:
+                mm.DoRaise(self.players.index(self.parser.hero))
+
         mm.Refresh()
 
     def stop_handling(self):
