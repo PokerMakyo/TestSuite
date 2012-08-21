@@ -2,12 +2,13 @@ import os
 import sys
 import time
 import xmlrpclib
+import socket
 import ConfigParser
 
 from gen import Ui_Form
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtGui import QTextCursor
-from PyQt4.QtCore import SIGNAL, QObject
+from PyQt4.QtCore import SIGNAL, QObject, QString
 
 from itertools import izip
 
@@ -31,6 +32,10 @@ class MyForm(QtGui.QWidget):
     def add_log(self, message):
         self.ui.logs.append(message)
 
+    def network_error(self):
+        QtGui.QMessageBox.warning(None, QString(sys.argv[0]), QString('message'))
+        self.stop_event()
+
     def handle_execute(self, all=False):
         class Testing(QtCore.QThread):
             def __init__(self, form, all):
@@ -39,18 +44,20 @@ class MyForm(QtGui.QWidget):
                 self.all = all
 
             def run(self):
-                self.form._update_buttons(True)
-                self.form.aborted = False
-                if not self.all:
-                    litm = self.form.ui.testcases.currentItem()
-                    self.form.ts.execute(litm.text())
-                else:
-                    for i in range(0, self.form.ui.testcases.count()):
-                        if self.form.aborted:
-                            break
-                        litm = self.form.ui.testcases.item(i)
+                litm = self.form.ui.testcases.currentItem()
+
+                if litm:
+                    self.form._update_buttons(True)
+                    self.form.aborted = False
+                    if not self.all:
                         self.form.ts.execute(litm.text())
-                self.form._update_buttons(False)
+                    else:
+                        for i in range(0, self.form.ui.testcases.count()):
+                            if self.form.aborted:
+                                break
+                            litm = self.form.ui.testcases.item(i)
+                            self.form.ts.execute(litm.text())
+                    self.form._update_buttons(False)
 
         self.testing = Testing(self, all)
         self.testing.start()
@@ -72,12 +79,13 @@ class MyForm(QtGui.QWidget):
         self.ui.logs.setTextCursor(c)
 
     def reload_event(self):
-        for i in range(0, self.ui.testcases.count()):
-            self.ui.testcases.takeItem(0)
+        if self.ui.directory.displayText():
+            for i in range(0, self.ui.testcases.count()):
+                self.ui.testcases.takeItem(0)
 
-        self.ts = TestSuite(str(self.ui.directory.displayText()), self)
-        for tcf in self.ts.tc_files:
-            self.ui.testcases.addItem(unicode(tcf))
+            self.ts = TestSuite(str(self.ui.directory.displayText()), self)
+            for tcf in self.ts.tc_files:
+                self.ui.testcases.addItem(unicode(tcf))
 
     def add_log(self, message):
         self.ui.logs.append(message)
@@ -580,6 +588,10 @@ class TestSuite(QObject):
 
         self.form = form
         self.connect(self, SIGNAL('add_log'), form.add_log, QtCore.Qt.QueuedConnection)
+        self.connect(self, SIGNAL('network_error'), form.network_error, QtCore.Qt.QueuedConnection)
+
+    def network_error(self):
+        self.emit(SIGNAL('network_error'))
 
     def load_testcases(self):
         self.tc_files = [file for file in os.listdir(self.tc_dir) if file[-4:] == '.txt' or file[-3:] == '.pa']
@@ -587,14 +599,24 @@ class TestSuite(QObject):
     def execute(self, tcf):
         self.tc = TestCase(os.path.join(self.tc_dir, str(tcf)), self.form)
         self.hand_number += 1
-        self.tc.execute(self.hand_number)
+
+        try:
+            self.tc.execute(self.hand_number)
+        except:
+            self.network_error()
+
         while self.tc.status != 'done':
             time.sleep(0.5)
 
     def stop(self):
         self.tc.aborted = True
-        mm = xmlrpclib.ServerProxy('http://localhost:9092')
-        mm.CancelGetAction()
+
+        try:
+            mm = xmlrpclib.ServerProxy('http://localhost:9092')
+            mm.CancelGetAction()
+        except socket.error:
+            pass
+
         self.emit(SIGNAL('add_log'), '<font color="#FF0000"><b>Stopped...</b></font><font color="#000000"> </font>')
 
 
