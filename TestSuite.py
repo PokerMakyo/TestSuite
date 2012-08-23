@@ -539,20 +539,25 @@ class TestCase(QObject):
 
 
         stop = False
-        if expected_button == button:
+        if expected_button == button and betsize == '':
             self.add_log('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
+        elif expected_button == 'A' and betsize != '':
+            self.add_log('<font color="#FF0000"><b>Expected %s, got S (%s).</b></font><font color="#000000"> </font>' % (expected_button, button))
         elif (expected_button == 'K' and button == 'C') or (expected_button == 'F' and button == 'K'):
             self.add_log('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
-        elif (expected_button == 'S' and button == 'A'): # A used as confirmation for swag
+        elif (expected_button == 'S' and button == 'A' and betsize != ''): # A used as confirmation for swag
             self.add_log('<font color="#009900"><b>Expected %s, got S (%s).</b></font><font color="#000000"> </font>' % (expected_button, button))
         else:
             self.add_log('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
 
         if expected_betsize:
             if expected_betsize == betsize:
-                self.add_log('<font color="#009900"><b>Expected %s, got \'%s\'.</b></font><font color="#000000"> </font>' % (expected_betsize, betsize))
+                self.add_log('<font color="#009900"><b>Expected \'%s\', got \'%s\'.</b></font><font color="#000000"> </font>' % (expected_betsize, betsize))
             else:
-                self.add_log('<font color="#FF0000"><b>Expected %s, got \'%s\'.</b></font><font color="#000000"> </font>' % (expected_betsize, betsize))
+                self.add_log('<font color="#FF0000"><b>Expected \'%s\', got \'%s\'.</b></font><font color="#000000"> </font>' % (expected_betsize, betsize))
+        else:
+            if betsize:
+                self.add_log('<font color="#FF0000"><b>Don\'t expected swag, got \'%s\'.</b></font><font color="#000000"> </font>' % (betsize))
 
         if button == 'F' or expected_button == 'F':
             #print 'We are doing fold.'
