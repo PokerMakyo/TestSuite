@@ -33,7 +33,7 @@ class MyForm(QtGui.QWidget):
         self.ui.logs.append(message)
 
     def network_error(self):
-        QtGui.QMessageBox.warning(None, QString(sys.argv[0]), QString('message'))
+        QtGui.QMessageBox.warning(None, QString(sys.argv[0]), QString('Can\'t connect to ManualMode. Check if ManualMode-XMLRPC is running.'))
         self.stop_event()
 
     def handle_execute(self, all=False):
