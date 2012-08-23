@@ -604,7 +604,7 @@ class TestSuite(QObject):
 
         try:
             self.tc.execute(self.hand_number)
-        except:
+        except socket.error:
             self.network_error()
 
         while self.tc.status != 'done':
