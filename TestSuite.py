@@ -46,7 +46,7 @@ class MyForm(QtGui.QWidget):
             def run(self):
                 litm = self.form.ui.testcases.currentItem()
 
-                if litm:
+                if litm or all:
                     self.form._update_buttons(True)
                     self.form.aborted = False
                     if not self.all:
