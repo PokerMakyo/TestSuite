@@ -557,7 +557,7 @@ class TestCase(QObject):
                 self.add_log('<font color="#FF0000"><b>Expected \'%s\', got \'%s\'.</b></font><font color="#000000"> </font>' % (expected_betsize, betsize))
         else:
             if betsize:
-                self.add_log('<font color="#FF0000"><b>Don\'t expected swag, got \'%s\'.</b></font><font color="#000000"> </font>' % (betsize))
+                self.add_log('<font color="#FF0000"><b>Didn\'t expected swag, got \'%s\'.</b></font><font color="#000000"> </font>' % (betsize))
 
         if button == 'F' or expected_button == 'F':
             #print 'We are doing fold.'
