@@ -539,8 +539,11 @@ class TestCase(QObject):
 
 
         stop = False
+
         if expected_button == button and betsize == '':
             self.add_log('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
+        elif expected_button == 'R' and button == 'A' and betsize != '':
+            self.add_log('<font color="#FF0000"><b>Expected %s, got S (%s).</b></font><font color="#000000"> </font>' % (expected_button, button))
         elif expected_button == 'A' and betsize != '':
             self.add_log('<font color="#FF0000"><b>Expected %s, got S (%s).</b></font><font color="#000000"> </font>' % (expected_button, button))
         elif (expected_button == 'K' and button == 'C') or (expected_button == 'F' and button == 'K'):
