@@ -333,26 +333,61 @@ class TestCase(QObject):
         """
         mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
-        expected_button = self.last_action[4]
+        # NOTE: be careful!
+
+        # _expected_action_ is action from testcase, so:
+        #
+        # F - Fold, C - Call, K - Check, A - AllIn
+        # but:
+        # R - min raise, R - swag (depends on betsize)
+        # if betsize then swag, else min raise
+
+
+        # _button_ is button of ManualMode clicked by OH, so:
+        #
+        # F - action Fold, C - action Call, K - action Check,
+        # R - action min raise!
+        # but:
+        # A - AllIn, A - swag (depends on betsize)
+        # if betsize then swag, else AllIn
+
+        expected_action = self.last_action[4]
+
         expected_betsize = None
         if len(self.last_action) == 6:
             expected_betsize = self.last_action[5]
 
+        if expected_action == button and betsize == '' and not expected_betsize:
+            # expected F got F
+            # expected C got C
+            # expected K got K
+            # expected R got R - where R is min raise
+            # expected A got A.
+            # all this without betsize set
+            self.add_log('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_action, button))
 
-        stop = False
+        elif expected_action == 'R' and expected_betsize and button == 'A' and betsize != "":
+            # correct swag (defined in testcase as R)
+            # expected S (A + betsize) got S (A + betsize)
+            self.add_log('<font color="#009900"><b>Expected %s (swag), got %s (swag).</b></font><font color="#000000"> </font>' % (expected_action, button))
 
-        if expected_button == button and betsize == '':
-            self.add_log('<font color="#009900"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
-        elif expected_button == 'R' and button == 'A' and betsize != '':
-            self.add_log('<font color="#FF0000"><b>Expected %s, got S (%s).</b></font><font color="#000000"> </font>' % (expected_button, button))
-        elif expected_button == 'A' and betsize != '':
-            self.add_log('<font color="#FF0000"><b>Expected %s, got S (%s).</b></font><font color="#000000"> </font>' % (expected_button, button))
-        elif (expected_button == 'K' and button == 'C') or (expected_button == 'F' and button == 'K'):
-            self.add_log('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
-        elif (expected_button == 'S' and button == 'A' and betsize != ''): # A used as confirmation for swag
-            self.add_log('<font color="#009900"><b>Expected %s, got S (%s).</b></font><font color="#000000"> </font>' % (expected_button, button))
+        elif (expected_action == 'K' and button == 'C') or (expected_action == 'F' and button == 'K'):
+            # acceptable button
+            # expected K got C
+            # expected F got K
+            self.add_log('<font color="#CF8D0A"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_action, button))
+
         else:
-            self.add_log('<font color="#FF0000"><b>Expected %s, got %s.</b></font><font color="#000000"> </font>' % (expected_button, button))
+            ginfo = "" # got info
+            einfo = "" # expected info
+
+            if betsize and button == 'A':
+                ginfo = " (swag)"
+
+            if expected_betsize and expected_action == 'R':
+                einfo = " (swag)"
+
+            self.add_log('<font color="#FF0000"><b>Expected %s%s, got %s%s.</b></font><font color="#000000"> </font>' % (expected_action, einfo, button, ginfo))
 
         if expected_betsize:
             if expected_betsize == betsize:
@@ -363,23 +398,25 @@ class TestCase(QObject):
             if betsize:
                 self.add_log('<font color="#FF0000"><b>Didn\'t expected swag, got \'%s\'.</b></font><font color="#000000"> </font>' % (betsize))
 
-        if button == 'F' or expected_button == 'F':
-            #print 'We are doing fold.'
+        if button == 'F' or expected_action == 'F':
             mm.DoFold(self.players.index(self.parser.hero))
             # Abort testcase after bot fold
             self.aborted = True
+
         elif button == 'C':
-            #print 'We are doing call.'
             mm.DoCall(self.players.index(self.parser.hero))
+
         elif button == 'K':
-            #print 'We are doing check.'
             pass
-        elif button == 'R':
-            #print 'We are doing raise.'
-            if expected_betsize:
+
+        elif button == 'R': # min raise
+            mm.DoRaise(self.players.index(self.parser.hero))
+
+        elif button == 'A': # allin or swag
+            if betsize:
                 mm.DoRaise(self.players.index(self.parser.hero), float(betsize))
             else:
-                mm.DoRaise(self.players.index(self.parser.hero))
+                mm.DoAllin(self.players.index(self.parser.hero))
 
         mm.Refresh()
 
