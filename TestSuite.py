@@ -98,6 +98,8 @@ class MyForm(QtGui.QWidget):
 
 class TestCase(QObject):
     def __init__(self, tcfile, form):
+        """Initialization of TestCase object.
+        """
         QObject.__init__(self)
 
         self.status = 'not started'
@@ -133,9 +135,13 @@ class TestCase(QObject):
         self.dealer = self.players[self.players.index(SB) - 1]
 
     def add_log(self, message):
+        """Send log message to GUI.
+        """
         self.emit(SIGNAL('add_log'), message)
 
     def _dump_history(self):
+        """Save history in tshistory file.
+        """
         fd = open('tshistory.py', 'w')
         fd.write('pf = %s\n' % str(self.parser.pf_actions))
         fd.write('f = %s\n' % str(self.parser.flop_actions))
@@ -144,12 +150,18 @@ class TestCase(QObject):
         fd.close()
 
     def _parse_txt(self, tcfile):
+        """Parse testcase file using txt parser.
+        """
         self.parser = TxtParser(tcfile)
 
     def _parse_pa(self, tcfile):
+        """Parse testcase file using poker academy parser.
+        """
         self.parser = PaParser(tcfile)
 
     def _reset_table(self, mm):
+        """Reset MM-XMLRPC.
+        """
         for c in range(0, 10):
             mm.SetActive(c, False)
             mm.SetSeated(c, False)
@@ -165,6 +177,8 @@ class TestCase(QObject):
         time.sleep(0.5)
 
     def _configure_table(self, mm):
+        """Configure MM-XMLRPC for this testcase.
+        """
         mm.SetPot(0.0)
 
         if self.parser.sblind:
@@ -196,6 +210,8 @@ class TestCase(QObject):
         mm.Refresh()
 
     def _add_players(self, mm):
+        """Add players form testcase to the table.
+        """
         c = 0
         for p in self.players:
             mm.SetActive(c, True)
@@ -206,12 +222,18 @@ class TestCase(QObject):
         mm.Refresh()
 
     def _set_hero(self, mm):
+        """Configure hero cards.
+        """
         mm.SetCards(self.players.index(self.parser.hero), self.parser.hand[0], self.parser.hand[1])
 
     def _set_dealer(self, mm):
+        """Configure dealer on the table.
+        """
         mm.SetDealer(self.players.index(self.dealer))
 
     def _next_action(self, mm):
+        """Generator which yeld next action in this testcase.
+        """
         self.bround = 'preflop'
         for a in self.parser.pf_actions:
             yield a
@@ -242,6 +264,8 @@ class TestCase(QObject):
             yield a
 
     def _do_action(self, action, mm):
+        """Do single action on the table.
+        """
         self.last_action = action
         self.add_log('Processing %s action: %s' % (self.bround, action))
         time.sleep(0.5)
@@ -269,6 +293,8 @@ class TestCase(QObject):
             return True
 
     def execute(self, hand_number = None):
+        """Method used to starting testcase execution.
+        """
         mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
         if self.status == 'not started':
@@ -303,6 +329,8 @@ class TestCase(QObject):
         self.status = 'done'
 
     def handle_button(self, button, betsize):
+        """Handler for button click send by OH.
+        """
         mm = xmlrpclib.ServerProxy('http://localhost:9092')
 
         expected_button = self.last_action[4]
