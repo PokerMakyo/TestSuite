@@ -186,29 +186,29 @@ class TestCase(QObject):
         """
         mm.SetPot(0.0)
 
-        if self.parser.sblind:
+        if self.parser.sblind is not None:
             mm.SetSBlind(self.parser.sblind)
 
-        if self.parser.bblind:
+        if self.parser.bblind is not None:
             mm.SetBBlind(self.parser.bblind)
 
-        if self.parser.bbet:
+        if self.parser.bbet is not None:
             mm.SetBBet(self.parser.bbet)
 
-        if self.parser.ante:
+        if self.parser.ante is not None:
             mm.SetAnte(self.parser.ante)
 
-        if self.parser.gtype:
+        if self.parser.gtype is not None:
             if self.parser.gtype in ('NL', 'PL', 'FL'):
                 mm.SetGType(self.parser.gtype)
 
-        if self.parser.network:
+        if self.parser.network is not None:
             mm.SetNetwork(self.parser.network)
 
-        if self.parser.tournament:
+        if self.parser.tournament is not None:
             mm.SetTournament(self.parser.tournament)
 
-        if self.parser.balances:
+        if self.parser.balances is not None:
             for player, balance in self.parser.balances:
                 mm.SetBalance(self.players.index(player.strip()), float(balance.strip()))
 
