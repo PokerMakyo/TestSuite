@@ -130,9 +130,14 @@ class TestCase(QObject):
             p = self.players.pop()
             self.players.insert(0, p)
 
-        # dealer is sitting before SB
         SB = self.parser.pf_actions[0][0]
-        self.dealer = self.players[self.players.index(SB) - 1]
+
+        if len(self.players) > 2:
+            # dealer is sitting before SB
+            self.dealer = self.players[self.players.index(SB) - 1]
+        else:
+            # delaer is SB
+            self.dealer = SB
 
     def add_log(self, message):
         """Send log message to GUI.
